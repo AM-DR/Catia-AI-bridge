@@ -1,0 +1,872 @@
+#! usr/bin/python3.9
+"""
+    Module initially auto generated using V5Automation files from CATIA V5 R28 on 2020-09-25 14:34:21.593357
+
+    .. warning::
+        The notes denoted "CAA V5 Visual Basic Help" are to be used as reference only.
+        They are there as a guide as to how the visual basic / catscript functions work
+        and thus help debugging in pycatia.
+        
+"""
+
+import inspect
+from typing import TYPE_CHECKING
+
+from pycatia.cat_tps_interfaces.coord_dim import CoordDim
+from pycatia.system_interfaces.any_object import AnyObject
+from pycatia.cat_tps_interfaces.datum_simple import DatumSimple
+from pycatia.cat_tps_interfaces.datum_target import DatumTarget
+from pycatia.cat_tps_interfaces.default_annotation import DefaultAnnotation
+from pycatia.cat_tps_interfaces.dimension_3d import Dimension3D
+from pycatia.cat_tps_interfaces.flag_note import FlagNote
+from pycatia.cat_tps_interfaces.noa import Noa
+from pycatia.cat_tps_interfaces.non_semantic_datum import NonSemanticDatum
+from pycatia.cat_tps_interfaces.non_semantic_datum_target import NonSemanticDatumTarget
+from pycatia.cat_tps_interfaces.non_semantic_dimension import NonSemanticDimension
+from pycatia.cat_tps_interfaces.non_semantic_gdt import NonSemanticGDT
+from pycatia.cat_tps_interfaces.roughness import Roughness
+from pycatia.cat_tps_interfaces.semantic_gdt import SemanticGDT
+from pycatia.cat_tps_interfaces.text import Text
+from pycatia.cat_tps_interfaces.tps_view import TPSView
+from pycatia.cat_tps_interfaces.weld import Weld
+
+if TYPE_CHECKING:
+    from pycatia.cat_tps_interfaces.reference_frame import ReferenceFrame
+
+
+class Annotation2(AnyObject):
+    """
+
+    Introduced in V5-6R2017.
+
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+
+                | System.IUnknown
+                |     System.IDispatch
+                |         System.CATBaseUnknown
+                |             System.CATBaseDispatch
+                |                 System.AnyObject
+                |                     Annotation2
+                | 
+                | Interface for the Technological Product Specification (TPS)
+                | objects.
+                | Leaf entity in the Design Pattern Composite. TPS modeler enables definition of
+                | specification related to surfaces.
+    
+    """
+
+    def __init__(self, com_object):
+        super().__init__(com_object)
+        self.com_object = com_object
+
+    @property
+    def super_type(self) -> str:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Property SuperType() As CATBSTR (Read Only)
+                | 
+                |     Gets the Super Type.
+                | 
+                |     Parameters:
+                | 
+                |         oSuperType
+                |             The Super Type. The list of SuperType available: "FTA_NonSemantic"
+                |             "FTA_Form" "FTA_Dimension" "FTA_Position" "FTA_Datum" "FTA_Orientation"
+                |             "FTA_RunOut"
+
+        :rtype: str
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return self.com_object.SuperType
+
+    @property
+    def tps_status(self) -> str:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Property TPSStatus() As CATBSTR (Read Only)
+                | 
+                |     Gets the TPS Status.
+                | 
+                |     Parameters:
+                | 
+                |         oStatus
+                |             The Status.
+
+        :rtype: str
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return self.com_object.TPSStatus
+
+    @property
+    def type(self) -> str:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Property Type() As CATBSTR (Read Only)
+                | 
+                |     Gets the Type.
+                | 
+                |     Parameters:
+                | 
+                |         oType
+                |             The Type. List of types available ordered by SuperType: SuperType = "FTA_NonSemantic" Type = "FTA_Text" Type = "FTA_FlagNote" Type = "FTA_Roughness" Type = "FTA_Weld" Type = "FTA_Noa" Type = "FTA_NonSemanticDatum" Type = "FTA_NonSemanticTarget" Type = "FTA_NonSemanticGDT" Type = "FTA_NonSemanticDimension" SuperType = "FTA_Form" Type = "FTA_Flatness" Type = "FTA_Straightness" Type = "FTA_Circularity" Type = "FTA_Cylindricity" Type = "FTA_ProfileOfAnyLine" Type = "FTA_ProfileOfASurface" Type = "FTA_PatternTruePos" SuperType = "FTA_Dimension" Type = "FTA_LinearDimension" Type = "FTA_AngularDimension" Type = "FTA_SecondLinearDimension" Type = "FTA_ChamferDimension" Type = "FTA_BasicDimension" SuperType = "FTA_Position" Type = "FTA_TruePosition" Type = "FTA_Concentricity" Type = "FTA_Symmetry" Type = "FTA_PositionOfAnyLine" Type = "FTA_PositionOfASurface" SuperType = "FTA_Datum" Type = "FTA_DatumSimple" Type = "FTA_DatumTarget" Type = "FTA_DatumSystem" Type = "FTA_ReferenceFrame" SuperType = "FTA_Orientation" Type = "FTA_Parallelism" Type = "FTA_Perpendicularity" Type = "FTA_Angularity" SuperType = "FTA_RunOut" Type = "FTA_TotalRunOut" Type = "FTA_CircularRunOut"
+
+        :rtype: str
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return self.com_object.Type
+
+    @property
+    def z(self) -> float:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Property Z(double iZ) (Write Only)
+                | 
+                |     method get_Z will never be exposed Set the offset of the
+                |     annotation
+                | 
+                |     Parameters:
+                | 
+                |         iZ
+                |             The offset.
+
+        :rtype: float
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return self.com_object.Z
+
+    @z.setter
+    def z(self, value: float):
+        """
+        :param False value:
+        """
+
+        self.com_object.Z = value
+
+    def add_leader(self) -> None:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Sub AddLeader()
+                | 
+                |     Add a leader.
+
+        :rtype: None
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return self.com_object.AddLeader()
+
+    def coordinate_dimension(self) -> CoordDim:
+        """
+
+        Introduced in V5-6R2018.
+
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2024-08-20 16:04:57.203445)
+                | Func Coordinatedimension() As CoordDim
+                |     Retrieves the FTA co coordinate dimension.
+
+        :rtype: CoordDim
+        """
+
+        self.release_check(
+            self.application.system_configuration.release,
+            28,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return CoordDim(self.com_object.Coordinatedimension())
+
+    def datum_simple(self) -> DatumSimple:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func DatumSimple() As DatumSimple
+                | 
+                |     Gets the annotation on the DatumSimple interface.
+
+        :rtype: DatumSimple
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return DatumSimple(self.com_object.DatumSimple())
+
+    def datum_target(self) -> DatumTarget:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func DatumTarget() As DatumTarget
+                | 
+                |     Gets the annotation on the DatumTarget interface.
+
+        :rtype: DatumTarget
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return DatumTarget(self.com_object.DatumTarget())
+
+    def default_annotation(self) -> DefaultAnnotation:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func DefaultAnnotation() As DefaultAnnotation
+                | 
+                |     Gets the annotation on the DefaultAnnotation interface.
+
+        :rtype: DefaultAnnotation
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return DefaultAnnotation(self.com_object.DefaultAnnotation())
+
+    def dimension_3d(self) -> Dimension3D:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func Dimension3D() As Dimension3D
+                | 
+                |     Gets the 3D Dimension on the 3D Dimension interface.
+                | 
+                |     Parameters:
+                | 
+                |         oDim
+                |             The 3D Dimension.
+
+        :rtype: Dimension3D
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return Dimension3D(self.com_object.Dimension3D())
+
+    def flag_note(self) -> FlagNote:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func FlagNote() As FlagNote
+                | 
+                |     Gets the annotation on the FlagNote interface.
+                | 
+                |     Parameters:
+                | 
+                |         oFlagNote
+                |             The annotation Flag Note.
+
+        :rtype: FlagNote
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return FlagNote(self.com_object.FlagNote())
+
+    def get_geometrical_component_name(self, i_index: int) -> str:
+        """
+
+        Introduced in V5-6R2022.
+
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2026-02-21 15:26:49.309967)
+                | Func GetGeometricalComponentName(short iIndex) As CATBSTR
+                |     Gets the Geometrical Component name at given index.
+                |
+                |     Parameters:
+                |
+                |         iIndex
+                |             The index of the geometrical component; this value is greater or
+                |             equal to 1 and lower or equal to the value returned by
+                |             GetNbrOfGeometricalComponent.
+                |         oComponentName
+                |             The name of the geometrical component.
+
+        :param int i_index:
+        :rtype: str
+        """
+
+        self.release_check(
+            self.application.system_configuration.release,
+            32,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+
+        return self.com_object.GetGeometricalComponentName(i_index)
+
+    def get_nbr_of_geometrical_component(self) -> int:
+        """
+
+        Introduced in V5-6R2022.
+
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2026-02-21 15:26:49.309967)
+                | Func GetNbrOfGeometricalComponent() As short
+                |     Gets the number of geometrical components.
+                |
+                |     Parameters:
+                |
+                |         oGeomLinkNbr
+                |             The number of links to the geometry employed by this
+                |             annotation.
+                |             The returned value is comprise in between 1 and N (N is at most the
+                |             total of geometrical links existing under the
+                |             annotation).
+                |             The amount of Geometrical Component sent back may be different from
+                |             the annotation total links to the geometry because
+                |             sometimes
+                |             the Group of Surfaces may point to the same geometrical component
+                |             participating to the definition of several User Surfaces.
+
+        :rtype: int
+        """
+
+        self.release_check(
+            self.application.system_configuration.release,
+            32,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+
+        return self.com_object.GetNbrOfGeometricalComponent()
+
+    def get_surfaces(self, o_safe_array: tuple) -> None:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Sub GetSurfaces(CATSafeArrayVariant oSafeArray)
+                | 
+                |     Gets the geometry on which the Annotation is applied to.
+
+        :param tuple o_safe_array:
+        :rtype: None
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return self.com_object.GetSurfaces(o_safe_array)
+        # # # # Autogenerated comment: 
+        # # some methods require a system service call as the methods expects a vb array object
+        # # passed to it and there is no way to do this directly with python. In those cases the following code
+        # # should be uncommented and edited accordingly. Otherwise completely remove all this.
+        # # vba_function_name = 'get_surfaces'
+        # # vba_code = """
+        # # Public Function get_surfaces(annotation2)
+        # #     Dim oSafeArray (2)
+        # #     annotation2.GetSurfaces oSafeArray
+        # #     get_surfaces = oSafeArray
+        # # End Function
+        # # """
+
+        # # system_service = SystemService(self.application.SystemService)
+        # # return system_service.evaluate(vba_code, 0, vba_function_name, [self.com_object])
+
+    def get_surfaces_count(self) -> int:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func GetSurfacesCount() As long
+                | 
+                |     Counts the geometry on which the Annotation is applied to.
+
+        :rtype: int
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return self.com_object.GetSurfacesCount()
+
+    def has_a_visualization_dimension(self) -> bool:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func HasAVisualizationDimension() As boolean
+                | 
+                |     Checks if the Annotation uses a visualization dimension for its attachment
+                |     to the geometry.
+
+        :rtype: bool
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return self.com_object.HasAVisualizationDimension()
+
+    def is_a_consumable_annotation(self) -> bool:
+        """
+
+        Introduced in V5-6R2019.
+
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2024-08-20 16:04:57.203445)
+                | Func IsAConsumableAnnotation() As boolean
+                |     Checks if the Annotation is a Consumable Annotation.
+
+        :rtype: bool
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            29,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+
+        return self.com_object.IsAConsumableAnnotation()
+
+    def is_a_default_annotation(self) -> bool:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func IsADefaultAnnotation() As boolean
+                | 
+                |     To know if the Annotation is a Default Annotation.
+
+        :rtype: bool
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return self.com_object.IsADefaultAnnotation()
+
+    def modify_visu(self) -> None:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Sub ModifyVisu()
+                | 
+                |     To refresh the 3D visualization.
+
+        :rtype: None
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return self.com_object.ModifyVisu()
+
+    def noa(self) -> Noa:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func Noa() As Noa
+                | 
+                |     Gets the annotation on the Noa interface.
+
+        :rtype: Noa
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return Noa(self.com_object.Noa())
+
+    def non_semantic_datum(self) -> NonSemanticDatum:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func NonSemanticDatum() As NonSemanticDatum
+                | 
+                |     Gets the annotation on the DatumSimple interface.
+
+        :rtype: NonSemanticDatum
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return NonSemanticDatum(self.com_object.NonSemanticDatum())
+
+    def non_semantic_datum_target(self) -> NonSemanticDatumTarget:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func NonSemanticDatumTarget() As NonSemanticDatumTarget
+                | 
+                |     Gets the annotation on the DatumSimple interface.
+
+        :rtype: NonSemanticDatumTarget
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return NonSemanticDatumTarget(self.com_object.NonSemanticDatumTarget())
+
+    def non_semantic_dimension(self) -> NonSemanticDimension:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func NonSemanticDimension() As NonSemanticDimension
+                | 
+                |     Gets the annotation on the DatumSimple interface.
+
+        :rtype: NonSemanticDimension
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return NonSemanticDimension(self.com_object.NonSemanticDimension())
+
+    def non_semantic_gdt(self) -> NonSemanticGDT:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func NonSemanticGDT() As NonSemanticGDT
+                | 
+                |     Gets the annotation on the DatumSimple interface.
+
+        :rtype: NonSemanticGDT
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return NonSemanticGDT(self.com_object.NonSemanticGDT())
+
+    def reference_frame(self) -> 'ReferenceFrame':
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func ReferenceFrame() As ReferenceFrame
+                | 
+                |     Gets the annotation on the ReferenceFrame interface.
+
+        :rtype: ReferenceFrame
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        from pycatia.cat_tps_interfaces.reference_frame import ReferenceFrame
+        return ReferenceFrame(self.com_object.ReferenceFrame())
+
+    def roughness(self) -> Roughness:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func Roughness() As Roughness
+                | 
+                |     Gets the annotation on the Roughness interface.
+
+        :rtype: Roughness
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return Roughness(self.com_object.Roughness())
+
+    def semantic_gdt(self) -> SemanticGDT:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func SemanticGDT() As SemanticGDT
+                | 
+                |     Gets the annotation on the DatumSimple interface.
+
+        :rtype: SemanticGDT
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return SemanticGDT(self.com_object.SemanticGDT())
+
+    def set_geometrical_component_name(self, i_index: int, i_new_name: str, i_check_name_unicity_option: bool) -> None:
+        """
+
+        Introduced in V5-6R2022.
+
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2026-02-21 15:26:49.309967)
+                | Sub SetGeometricalComponentName(short iIndex,CATBSTR iNewName,boolean
+                | iCheckNameUnicityOption)
+                |     Sets the Geometrical Component name at given index.
+                |
+                |     Parameters:
+                |
+                |         iIndex
+                |             The index of the geometrical component; this value is greater or
+                |             equal to 1 and lower or equal to the value returned by
+                |             GetNbrOfGeometricalComponent.
+                |             The user is allowed to pass a 0 value as index; in this case, an
+                |             automatic renaming is triggered.
+                |             In this case the usual path of a geometrical component (for
+                |             instance Face/Name of the feature/Body.1) is used to extract the logical name
+                |             to apply "Name of the feature".
+                |             Pay attention that geometrical component name must be unique; this
+                |             method is exiting in error whenever the unicity is of geometrical component is
+                |             broken.
+                |             The renaming processing is given up without any change when an
+                |             already existing name is passed to this method or when automatic processing
+                |             faces naming ambiguity.
+                |         iNewName
+                |             The string used to rename the geometrical component.
+                |
+                |         iCheckNameUnicityOption
+                |             Option to trigger an addition verification during renaming to
+                |             guarantee that the entire set of Geometrical Components in the
+                |             representation
+                |             have a different name.
+
+        :param int i_index:
+        :param str i_new_name:
+        :param bool i_check_name_unicity_option:
+        :rtype: None
+        """
+
+        self.release_check(
+            self.application.system_configuration.release,
+            32,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+
+        return self.com_object.SetGeometricalComponentName(i_index, i_new_name, i_check_name_unicity_option)
+
+    def set_xy(self, i_x: float, i_y: float) -> None:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Sub SetXY(double iX,
+                | double iY)
+                | 
+                |     method GetXY will never be exposed Set TPS coordinates in the
+                |     view
+                | 
+                |     Parameters:
+                | 
+                |         oX
+                |             The X coordinate. 
+                |         oY
+                |             The Y coordinate.
+
+        :param float i_x:
+        :param float i_y:
+        :rtype: None
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return self.com_object.SetXY(i_x, i_y)
+
+    def text(self) -> Text:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func Text() As Text
+                | 
+                |     Gets the annotation on the Text interface.
+                | 
+                |     Parameters:
+                | 
+                |         oText
+                |             The annotation Text.
+
+        :rtype: Text
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return Text(self.com_object.Text())
+
+    def transfert_to_view(self, i_view: TPSView) -> None:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Sub TransfertToView(TPSView iView)
+                | 
+                |     Move the annotation in another view.
+                | 
+                |     Parameters:
+                | 
+                |         iView
+                |             The destination view.
+
+        :param TPSView i_view:
+        :rtype: None
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return self.com_object.TransfertToView(i_view.com_object)
+        # # # # Autogenerated comment: 
+        # # some methods require a system service call as the methods expects a vb array object
+        # # passed to it and there is no way to do this directly with python. In those cases the following code
+        # # should be uncommented and edited accordingly. Otherwise completely remove all this.
+        # # vba_function_name = 'transfert_to_view'
+        # # vba_code = """
+        # # Public Function transfert_to_view(annotation2)
+        # #     Dim iView (2)
+        # #     annotation2.TransfertToView iView
+        # #     transfert_to_view = iView
+        # # End Function
+        # # """
+
+        # # system_service = SystemService(self.application.SystemService)
+        # # return system_service.evaluate(vba_code, 0, vba_function_name, [self.com_object])
+
+    def visualization_dimension(self) -> Dimension3D:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func VisualizationDimension() As Dimension3D
+                | 
+                |     Gets the dimension visualization associated with the
+                |     annotation.
+                | 
+                |     Parameters:
+                | 
+                |         oDim
+                |             The visualization Dimension oDim employed by the annotation to
+                |             display its link to the geometry.
+
+        :rtype: Dimension3D
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return Dimension3D(self.com_object.VisualizationDimension())
+
+    def weld(self) -> Weld:
+        """
+        .. note::
+            :class: toggle
+
+            CAA V5 Visual Basic Help (2020-09-25 14:34:21.593357)
+                | o Func Weld() As Weld
+                | 
+                |     Gets the annotation on the Weld interface.
+
+        :rtype: Weld
+        """
+        self.release_check(
+            self.application.system_configuration.release,
+            27,
+            f'{self.__class__.__name__}.{inspect.stack()[0][3]}',
+        )
+        return Weld(self.com_object.Weld())
+
+    def __repr__(self):
+        return f'Annotation2(name="{self.name}")'
