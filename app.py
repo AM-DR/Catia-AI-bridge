@@ -1159,6 +1159,227 @@ def inject_css(theme="🌙 Dark"):
     [data-testid="collapsedControl"] {{display: block !important; visibility: visible !important; color: {color_hdr} !important;}}
     </style>""", unsafe_allow_html=True)
 
+    # Final component layer: Streamlit changes its internal markup between
+    # releases, so keep the visual contract on semantic component boundaries.
+    # This layer deliberately follows the existing theme values above and
+    # fixes the light/Ocean Blue suffix controls without changing app logic.
+    st.markdown(f"""<style>
+    :root {{
+        --ui-primary: {btn_bg};
+        --ui-primary-hover: {btn_hover};
+        --ui-surface: {bg_card};
+        --ui-surface-muted: {bg_tabs};
+        --ui-border: {border_card};
+        --ui-control-border: {input_border};
+        --ui-text: {color_app};
+        --ui-text-muted: {color_card_d};
+        --ui-focus: {btn_bg};
+        --ui-radius-sm: 8px;
+        --ui-radius-md: 12px;
+        --ui-radius-lg: 16px;
+        --ui-motion-fast: 150ms;
+        --ui-motion-standard: 200ms;
+    }}
+
+    /* Consistent page rhythm and typography. */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{
+        color: var(--ui-text) !important;
+        font-size: 15px;
+        line-height: 1.5;
+    }}
+    [data-testid="stMainBlockContainer"] {{
+        max-width: 1440px;
+        padding-top: 2.25rem;
+        padding-bottom: 4rem;
+    }}
+    [data-testid="stSidebarContent"] {{
+        padding: 2.5rem 1.5rem 1.5rem;
+    }}
+    [data-testid="stSidebar"] hr {{
+        border-color: {border_sidebar} !important;
+        margin: 1.75rem 0 !important;
+    }}
+
+    /* Sidebar controls: the whole control, including its suffix, owns one
+       surface. This prevents the old black right-hand blocks in light mode. */
+    section[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+    section[data-testid="stSidebar"] [data-testid="stSelectbox"] [role="combobox"],
+    section[data-testid="stSidebar"] [data-testid="stSelectbox"] button,
+    section[data-testid="stSidebar"] [data-testid="stTextInputRootElement"],
+    section[data-testid="stSidebar"] [data-testid="stTextInputRootElement"] > div,
+    section[data-testid="stSidebar"] [data-testid="stTextInputRootElement"] input,
+    section[data-testid="stSidebar"] [data-testid="stTextInputRootElement"] button {{
+        background: {input_bg} !important;
+        color: {input_fg} !important;
+    }}
+    section[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+    section[data-testid="stSidebar"] [data-testid="stTextInputRootElement"] {{
+        border: 1px solid {input_border} !important;
+        border-radius: var(--ui-radius-md) !important;
+        min-height: 42px;
+        box-sizing: border-box;
+    }}
+    section[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] > div > div,
+    section[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] svg,
+    section[data-testid="stSidebar"] [data-testid="stTextInputRootElement"] svg {{
+        color: {input_fg} !important;
+        fill: {input_fg} !important;
+        stroke: {input_fg} !important;
+    }}
+    section[data-testid="stSidebar"] [data-testid="stTextInputRootElement"]:has(button[aria-pressed]) > button,
+    section[data-testid="stSidebar"] [data-testid="stTextInputRootElement"] button[aria-pressed] {{
+        border: 0 !important;
+        border-left: 1px solid {input_border} !important;
+        border-radius: 0 var(--ui-radius-md) var(--ui-radius-md) 0 !important;
+        min-width: 44px !important;
+        min-height: 40px !important;
+        opacity: 1 !important;
+    }}
+    section[data-testid="stSidebar"] [data-testid="stTextInputRootElement"]:focus-within,
+    section[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"]:focus-within {{
+        border-color: var(--ui-focus) !important;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-focus) 22%, transparent) !important;
+    }}
+    section[data-testid="stSidebar"] input::placeholder,
+    [data-testid="stMain"] input::placeholder,
+    [data-testid="stMain"] textarea::placeholder {{
+        color: {chat_placeholder} !important;
+        opacity: .85 !important;
+    }}
+
+    /* App chrome. */
+    .hdr {{
+        min-height: 72px;
+        margin: 0 auto 1.5rem;
+        padding: .75rem 0;
+        gap: .75rem;
+        border-bottom: 1px solid {border_card};
+    }}
+    .hdr-t {{
+        font-size: clamp(1.45rem, 2vw, 1.9rem);
+        letter-spacing: -.035em;
+    }}
+    .chip {{
+        font-size: .78rem;
+        font-weight: 600;
+        letter-spacing: .01em;
+        border-radius: 999px;
+    }}
+
+    /* Navigation should look like a workspace mode switch, not a floating
+       pill. */
+    [data-testid="stTabs"] [data-baseweb="tab-list"],
+    [data-testid="stTabsHeader"] {{
+        background: transparent !important;
+        border-bottom: 1px solid {border_tabs} !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        gap: 4px !important;
+        max-width: none !important;
+        justify-content: flex-start !important;
+        margin: 0 0 1.5rem !important;
+    }}
+    [data-testid="stTabs"] button[role="tab"],
+    [data-testid="stTabs"] [data-baseweb="tab"] {{
+        min-height: 44px !important;
+        padding: .65rem 1rem !important;
+        border-radius: var(--ui-radius-sm) var(--ui-radius-sm) 0 0 !important;
+        transition: background var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease, box-shadow var(--ui-motion-fast) ease;
+    }}
+    [data-testid="stTabs"] button[role="tab"][aria-selected="true"],
+    [data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"] {{
+        box-shadow: inset 0 -3px 0 var(--ui-primary) !important;
+    }}
+    [data-testid="stTabs"] button[role="tab"]:focus-visible,
+    [data-testid="stTabs"] [data-baseweb="tab"]:focus-visible,
+    button:focus-visible, input:focus-visible, textarea:focus-visible, [role="combobox"]:focus-visible {{
+        outline: 2px solid var(--ui-focus) !important;
+        outline-offset: 2px !important;
+    }}
+
+    /* Cards and panels. */
+    .qc {{
+        max-width: 900px;
+        gap: .75rem;
+        margin: 1.25rem auto 1.75rem;
+    }}
+    .qci, .wp, [data-testid="stExpander"], details {{
+        border-radius: var(--ui-radius-lg) !important;
+        box-shadow: none !important;
+    }}
+    .qci {{
+        min-height: 86px;
+        padding: 1rem 1.1rem;
+        transition: border-color var(--ui-motion-fast) ease, background var(--ui-motion-fast) ease;
+    }}
+    .qci:hover {{
+        transform: none !important;
+        border-color: var(--ui-primary) !important;
+    }}
+    .wp {{
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }}
+    [data-testid="stExpander"] summary, details summary {{
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }}
+
+    /* Buttons and number controls share the same action hierarchy. */
+    .stButton > button, [data-testid="stChatInput"] button,
+    [data-testid="stNumberInput"] button {{
+        min-height: 42px !important;
+        border-radius: var(--ui-radius-sm) !important;
+        transition: background var(--ui-motion-fast) ease, border-color var(--ui-motion-fast) ease, transform var(--ui-motion-fast) ease !important;
+    }}
+    .stButton > button:hover, [data-testid="stChatInput"] button:hover {{
+        transform: translateY(-1px);
+    }}
+    .stButton > button:active, [data-testid="stChatInput"] button:active {{
+        transform: translateY(0);
+    }}
+    [data-testid="stNumberInput"] input,
+    [data-testid="stTextInput"] input,
+    [data-testid="stTextArea"] textarea {{
+        min-height: 42px;
+        box-sizing: border-box;
+    }}
+
+    /* Feedback remains readable and close to the action that caused it. */
+    [data-testid="stAlert"], [data-testid="stStatusWidget"] {{
+        border-radius: var(--ui-radius-md) !important;
+    }}
+    .sc {{
+        min-height: 36px;
+        box-sizing: border-box;
+    }}
+
+    /* Keep the fixed chat affordance from obscuring keyboard focus. */
+    [data-testid="stBottom"] {{
+        padding-bottom: .75rem !important;
+    }}
+    [data-testid="stChatInput"] {{
+        max-width: 1440px;
+        margin: 0 auto;
+    }}
+
+    @media (max-width: 900px) {{
+        [data-testid="stMainBlockContainer"] {{ padding: 1.25rem 1rem 4rem; }}
+        .hdr {{ justify-content: flex-start; }}
+        .qc {{ grid-template-columns: 1fr; }}
+        .hdr-t {{ font-size: 1.35rem; }}
+    }}
+    @media (prefers-reduced-motion: reduce) {{
+        *, *::before, *::after {{
+            animation-duration: .01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: .01ms !important;
+            scroll-behavior: auto !important;
+        }}
+    }}
+    </style>""", unsafe_allow_html=True)
+
 
 def main():
     st.set_page_config(page_title="CATIA V5 AI Studio", page_icon="📐", layout="wide")

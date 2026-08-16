@@ -18,3 +18,12 @@ venv/
 
 # Logs & Temporary files
 *.log
+
+# Secrets and local Streamlit state
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Documentation capture scratch files
+docs/images/*.tmp
