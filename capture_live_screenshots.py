@@ -55,14 +55,12 @@ def capture():
         # Helper to set Theme via Selectbox
         def set_theme(theme_name):
             try:
-                # Find the theme selectbox container
-                sb = page.locator("[data-testid='stSelectbox']").first
+                sb = page.locator("div[data-testid='stSelectbox']").first
                 sb.click()
-                time.sleep(1)
-                # Click the option from dropdown
-                opt = page.locator(f"li:has-text('{theme_name}')").first
+                time.sleep(0.5)
+                opt = page.locator("li[role='option']").filter(has_text=theme_name).first
                 opt.click()
-                time.sleep(2.5)
+                time.sleep(2)
                 return True
             except Exception as e:
                 print(f"Error setting theme {theme_name}: {e}")
