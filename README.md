@@ -6,7 +6,7 @@
 
 **An intelligent, multi-model AI assistant and CAD automation desktop platform for Dassault Systèmes CATIA V5 R21+**
 
-*Crafted by **DRISSI AMJAD***
+*Crafted by **AM-DR***
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue.svg)](https://microsoft.com/windows)
 [![CATIA](https://img.shields.io/badge/CATIA-V5%20R20%20%7C%20R21%20%7C%20V5--6R-red.svg)](https://www.3ds.com/)
@@ -150,5 +150,5 @@ Catia-AI-bridge/
 
 ## 👨‍💻 Author & Attribution
 
-Developed and maintained by **DRISSI AMJAD**.  
+Developed and maintained by **AM-DR**.  
 Contributions, feedback, and feature requests are welcome via [GitHub Issues](https://github.com/AM-DR/Catia-AI-bridge/issues).

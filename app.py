@@ -1800,7 +1800,7 @@ def main():
 
     # Sidebar
     st.sidebar.markdown("<h3 style='font-size:1.1rem;font-weight:700;margin-bottom:2px'>📐 CATIA AI Studio</h3>", unsafe_allow_html=True)
-    st.sidebar.markdown("<div style='font-size:0.82rem;opacity:0.8;margin-bottom:12px'>Made by <b>DRISSI AMJAD</b></div>", unsafe_allow_html=True)
+    st.sidebar.markdown("<div style='font-size:0.82rem;opacity:0.8;margin-bottom:12px'>Made by <b>AM-DR</b></div>", unsafe_allow_html=True)
     theme = st.sidebar.selectbox("🎨 UI Theme", ["🌙 Dark", "☀️ Light", "🔵 Ocean Blue"])
     inject_css(theme)
     st.sidebar.markdown("---")
