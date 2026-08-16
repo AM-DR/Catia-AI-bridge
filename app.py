@@ -933,7 +933,7 @@ To split an existing solid with a 1mm gap, create a cutter body with a 1mm-thick
 # STREAMLIT GUI
 # ==============================================================================
 
-def inject_css(theme="🌙 Dark"):
+def _legacy_inject_css(theme="🌙 Dark"):
     if theme == "☀️ Light":
         bg_app = "#f8fafc"
         color_app = "#0f172a"
@@ -1379,6 +1379,345 @@ def inject_css(theme="🌙 Dark"):
         }}
     }}
     </style>""", unsafe_allow_html=True)
+
+
+def _theme_tokens(theme):
+    """Return the single semantic visual contract used by every UI component."""
+    common = {
+        "radius-sm": "8px",
+        "radius-md": "12px",
+        "radius-lg": "16px",
+        "motion-fast": "150ms",
+        "motion-standard": "200ms",
+        "motion-slow": "300ms",
+        "font-body": "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    }
+    if theme == "☀️ Light":
+        return {**common, **{
+            "color-scheme": "light",
+            "app-bg": "#f7f9fc", "sidebar-bg": "#ffffff", "surface": "#ffffff", "surface-subtle": "#f1f5f9",
+            "surface-hover": "#eef4ff", "border": "#d9e2ec", "border-strong": "#b8c7d9",
+            "text": "#0f172a", "text-muted": "#52606d", "text-faint": "#7b8794",
+            "sidebar-text": "#0f172a", "sidebar-muted": "#52606d", "sidebar-border": "#e1e8f0",
+            "primary": "#2563eb", "primary-hover": "#1d4ed8", "primary-text": "#ffffff",
+            "focus": "#2563eb", "focus-ring": "rgba(37, 99, 235, .24)",
+            "input-bg": "#ffffff", "input-text": "#0f172a", "input-border": "#b8c7d9",
+            "input-hover": "#f8fbff", "control-suffix": "#f3f6fa", "control-suffix-text": "#334155",
+            "chip-bg": "#eef2f7", "chip-text": "#475569", "shadow": "0 10px 30px rgba(15, 23, 42, .06)",
+            "warning-bg": "#fef3c7", "warning-text": "#92400e", "info-bg": "#e0f2fe", "info-text": "#075985",
+            "success-bg": "#dcfce7", "success-text": "#166534", "danger-bg": "#fee2e2", "danger-text": "#991b1b",
+        }}
+    if theme == "🔵 Ocean Blue":
+        return {**common, **{
+            "color-scheme": "light",
+            "app-bg": "#eff6ff", "sidebar-bg": "#0b1629", "surface": "#ffffff", "surface-subtle": "#e6f4ff",
+            "surface-hover": "#dff1ff", "border": "#b9e6ff", "border-strong": "#72c8f0",
+            "text": "#0c4a6e", "text-muted": "#27678b", "text-faint": "#5282a0",
+            "sidebar-text": "#f0f9ff", "sidebar-muted": "#b9d9ec", "sidebar-border": "#203451",
+            "primary": "#0891b2", "primary-hover": "#0e7490", "primary-text": "#ffffff",
+            "focus": "#0284c7", "focus-ring": "rgba(2, 132, 199, .28)",
+            "input-bg": "#1b2a40", "input-text": "#f0f9ff", "input-border": "#334c6b",
+            "input-hover": "#21354f", "control-suffix": "#152238", "control-suffix-text": "#d9f2ff",
+            "chip-bg": "#dff3ff", "chip-text": "#03648c", "shadow": "0 10px 28px rgba(14, 116, 144, .08)",
+            "warning-bg": "#fef3c7", "warning-text": "#92400e", "info-bg": "#dff4ff", "info-text": "#075985",
+            "success-bg": "#dcfce7", "success-text": "#166534", "danger-bg": "#fee2e2", "danger-text": "#991b1b",
+        }}
+    return {**common, **{
+        "color-scheme": "dark",
+        "app-bg": "#121416", "sidebar-bg": "#0e1115", "surface": "#1b2026", "surface-subtle": "#20262e",
+        "surface-hover": "#27303a", "border": "#303943", "border-strong": "#485565",
+        "text": "#f4f7fb", "text-muted": "#a9b4c0", "text-faint": "#7f8b98",
+        "sidebar-text": "#f4f7fb", "sidebar-muted": "#a9b4c0", "sidebar-border": "#252c34",
+        "primary": "#5b8cff", "primary-hover": "#4676e8", "primary-text": "#ffffff",
+        "focus": "#78a0ff", "focus-ring": "rgba(120, 160, 255, .28)",
+        "input-bg": "#232a33", "input-text": "#f4f7fb", "input-border": "#465261",
+        "input-hover": "#2a333e", "control-suffix": "#1a2027", "control-suffix-text": "#e7edf5",
+        "chip-bg": "#242b34", "chip-text": "#b9c6d5", "shadow": "0 12px 32px rgba(0, 0, 0, .22)",
+        "warning-bg": "#4a4316", "warning-text": "#fef08a", "info-bg": "#172d48", "info-text": "#bfdbfe",
+        "success-bg": "#123d2a", "success-text": "#bbf7d0", "danger-bg": "#4a1b20", "danger-text": "#fecaca",
+    }}
+
+
+def inject_css(theme="🌙 Dark"):
+    tokens = _theme_tokens(theme)
+    root_tokens = "\n".join(
+        f"        --ui-{key}: {value};" for key, value in tokens.items()
+    )
+    css = """<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    :root {
+__ROOT_TOKENS__
+    }
+
+    /* Global surfaces and type hierarchy. */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"],
+    [data-testid="stMainBlockContainer"], .stApp {
+        background: var(--ui-app-bg) !important;
+        color: var(--ui-text) !important;
+        font-family: var(--ui-font-body) !important;
+    }
+    html, body { font-size: 15px; line-height: 1.5; }
+    [data-testid="stMainBlockContainer"] {
+        max-width: 1440px;
+        padding: 2rem 2rem 5rem;
+    }
+    [data-testid="stMain"] h1, [data-testid="stMain"] h2,
+    [data-testid="stMain"] h3, [data-testid="stMain"] h4 {
+        color: var(--ui-text) !important;
+        letter-spacing: -.025em;
+    }
+    [data-testid="stMain"] p, [data-testid="stMain"] label,
+    [data-testid="stMain"] [data-testid="stMarkdownContainer"] {
+        color: var(--ui-text) !important;
+    }
+    [data-testid="stMain"] small, [data-testid="stMain"] [data-testid="stCaptionContainer"] {
+        color: var(--ui-text-muted) !important;
+    }
+    ::selection { background: var(--ui-focus-ring); color: var(--ui-text); }
+
+    /* Sidebar and its visual grouping. */
+    section[data-testid="stSidebar"] {
+        background: var(--ui-sidebar-bg) !important;
+        border-right: 1px solid var(--ui-sidebar-border) !important;
+    }
+    [data-testid="stSidebarContent"] { padding: 2.25rem 1.5rem 1.5rem; }
+    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3, section[data-testid="stSidebar"] h4,
+    section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] span, section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
+        color: var(--ui-sidebar-text) !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
+        color: var(--ui-sidebar-muted) !important;
+    }
+    section[data-testid="stSidebar"] hr {
+        border-color: var(--ui-sidebar-border) !important;
+        margin: 1.5rem 0 !important;
+    }
+    [data-testid="collapsedControl"] {
+        color: var(--ui-sidebar-text) !important;
+        background: var(--ui-sidebar-bg) !important;
+    }
+
+    /* Shared form field surface. The suffix buttons intentionally use the
+       same token as the field, preventing theme-specific black blocks. */
+    [data-testid="stTextInput"], [data-testid="stNumberInput"], [data-testid="stSelectbox"],
+    [data-testid="stTextArea"], [data-testid="stFileUploader"] { margin-bottom: .75rem; }
+    [data-testid="stTextInputRootElement"], [data-testid="stNumberInput"] > div,
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+    [data-testid="stTextArea"] textarea, [data-testid="stTextInput"] input,
+    [data-testid="stNumberInput"] input {
+        background: var(--ui-input-bg) !important;
+        color: var(--ui-input-text) !important;
+        border: 1px solid var(--ui-input-border) !important;
+        border-radius: var(--ui-radius-md) !important;
+        box-sizing: border-box !important;
+        min-height: 42px;
+        transition: background var(--ui-motion-fast) ease, border-color var(--ui-motion-fast) ease, box-shadow var(--ui-motion-fast) ease;
+    }
+    /* Streamlit 1.5x uses React-Aria for selectboxes. Keep this selector
+       alongside the BaseWeb selector so the theme remains stable across
+       Streamlit markup versions. */
+    [data-testid="stSelectbox"] .react-aria-ComboBox > [role="group"] {
+        background: var(--ui-input-bg) !important;
+        border: 1px solid var(--ui-input-border) !important;
+        border-radius: var(--ui-radius-md) !important;
+        box-sizing: border-box !important;
+        min-height: 42px;
+        overflow: hidden;
+    }
+    [data-testid="stSelectbox"] .react-aria-ComboBox > [role="group"] > input {
+        background: transparent !important;
+        border: 0 !important;
+        color: var(--ui-input-text) !important;
+        min-height: 40px;
+    }
+    [data-testid="stSelectbox"] .react-aria-ComboBox > [role="group"] > button {
+        background: var(--ui-control-suffix) !important;
+        border: 0 !important;
+        border-left: 1px solid var(--ui-input-border) !important;
+        border-radius: 0 !important;
+        color: var(--ui-control-suffix-text) !important;
+        min-height: 40px !important;
+        min-width: 42px !important;
+    }
+    [data-testid="stSelectbox"] .react-aria-ComboBox > [role="group"] svg {
+        color: var(--ui-control-suffix-text) !important;
+        fill: var(--ui-control-suffix-text) !important;
+        stroke: var(--ui-control-suffix-text) !important;
+    }
+    [data-testid="stTextInputRootElement"] input,
+    [data-testid="stNumberInput"] input { border: 0 !important; border-radius: inherit !important; }
+    [data-testid="stTextInputRootElement"] > div { background: transparent !important; }
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div > div,
+    [data-testid="stSelectbox"] [role="combobox"],
+    [data-testid="stSelectbox"] svg {
+        color: var(--ui-input-text) !important;
+        fill: var(--ui-input-text) !important;
+        stroke: var(--ui-input-text) !important;
+    }
+    [data-testid="stTextInputRootElement"] button,
+    [data-testid="stSelectbox"] button,
+    [data-testid="stNumberInput"] button {
+        background: var(--ui-control-suffix) !important;
+        color: var(--ui-control-suffix-text) !important;
+        border-color: var(--ui-input-border) !important;
+        min-width: 42px !important;
+        min-height: 40px !important;
+    }
+    [data-testid="stTextInputRootElement"] button[aria-pressed] {
+        border: 0 !important;
+        border-left: 1px solid var(--ui-input-border) !important;
+        border-radius: 0 var(--ui-radius-md) var(--ui-radius-md) 0 !important;
+    }
+    [data-testid="stTextInputRootElement"] svg,
+    [data-testid="stSelectbox"] button svg,
+    [data-testid="stNumberInput"] button svg {
+        color: var(--ui-control-suffix-text) !important;
+        fill: var(--ui-control-suffix-text) !important;
+        stroke: var(--ui-control-suffix-text) !important;
+    }
+    [data-testid="stTextInputRootElement"]:focus-within,
+    [data-testid="stNumberInput"]:focus-within,
+    [data-testid="stSelectbox"] [data-baseweb="select"]:focus-within,
+    [data-testid="stSelectbox"] .react-aria-ComboBox > [role="group"]:focus-within,
+    [data-testid="stTextArea"] textarea:focus {
+        border-color: var(--ui-focus) !important;
+        box-shadow: 0 0 0 3px var(--ui-focus-ring) !important;
+        outline: 0 !important;
+    }
+    input::placeholder, textarea::placeholder {
+        color: var(--ui-text-muted) !important;
+        opacity: .9 !important;
+    }
+    [data-testid="stTextInputRootElement"]:hover,
+    [data-testid="stNumberInput"]:hover,
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div:hover,
+    [data-testid="stSelectbox"] .react-aria-ComboBox > [role="group"]:hover,
+    [data-testid="stTextArea"] textarea:hover { background: var(--ui-input-hover) !important; }
+    button:disabled, input:disabled, textarea:disabled {
+        opacity: .55 !important;
+        cursor: not-allowed !important;
+    }
+    [data-baseweb="popover"], [data-baseweb="menu"], ul[role="listbox"] {
+        background: var(--ui-surface) !important;
+        border: 1px solid var(--ui-border) !important;
+        border-radius: var(--ui-radius-md) !important;
+        box-shadow: var(--ui-shadow) !important;
+    }
+    li[role="option"], li[role="option"] * {
+        background: var(--ui-surface) !important;
+        color: var(--ui-text) !important;
+    }
+    li[role="option"]:hover, li[role="option"][aria-selected="true"] {
+        background: var(--ui-surface-hover) !important;
+    }
+
+    /* Native focus is retained and made visible on every operable control. */
+    button:focus-visible, input:focus-visible, textarea:focus-visible,
+    [role="combobox"]:focus-visible, [role="tab"]:focus-visible,
+    summary:focus-visible {
+        outline: 2px solid var(--ui-focus) !important;
+        outline-offset: 2px !important;
+    }
+
+    /* Header and workspace navigation. */
+    .hdr {
+        align-items: center;
+        border-bottom: 1px solid var(--ui-border);
+        display: flex;
+        gap: .75rem;
+        justify-content: center;
+        margin: 0 auto 1.25rem;
+        min-height: 72px;
+        padding: .75rem 0;
+    }
+    .hdr-t { color: var(--ui-text) !important; font-size: clamp(1.45rem, 2vw, 1.9rem); font-weight: 700; letter-spacing: -.04em; }
+    .chip { background: var(--ui-chip-bg) !important; border: 1px solid var(--ui-border); border-radius: 999px; color: var(--ui-chip-text) !important; font-size: .78rem; font-weight: 600; padding: .35rem .7rem; }
+    [data-testid="stTabs"] [data-baseweb="tab-list"], [data-testid="stTabsHeader"] {
+        background: transparent !important;
+        border-bottom: 1px solid var(--ui-border) !important;
+        border-radius: 0 !important;
+        gap: 4px !important;
+        justify-content: flex-start !important;
+        margin: 0 0 1.5rem !important;
+        max-width: none !important;
+        padding: 0 !important;
+    }
+    [data-testid="stTabs"] [data-baseweb="tab"], [data-testid="stTabs"] button[role="tab"] {
+        border-radius: var(--ui-radius-sm) var(--ui-radius-sm) 0 0 !important;
+        color: var(--ui-text-muted) !important;
+        min-height: 44px !important;
+        padding: .65rem 1rem !important;
+        transition: background var(--ui-motion-fast) ease, color var(--ui-motion-fast) ease, box-shadow var(--ui-motion-fast) ease;
+    }
+    [data-testid="stTabs"] [data-baseweb="tab"] *, [data-testid="stTabs"] button[role="tab"] * { color: inherit !important; }
+    [data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"], [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+        background: var(--ui-primary) !important;
+        box-shadow: inset 0 -3px 0 var(--ui-primary-hover) !important;
+        color: var(--ui-primary-text) !important;
+    }
+
+    /* Quick-start cards, working panels, expanders, and upload states. */
+    .qc { display: grid; gap: .75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 1.25rem auto 1.75rem; max-width: 900px; }
+    .qci, .wp, [data-testid="stExpander"], details {
+        background: var(--ui-surface) !important;
+        border: 1px solid var(--ui-border) !important;
+        border-radius: var(--ui-radius-lg) !important;
+        box-shadow: var(--ui-shadow) !important;
+    }
+    .qci { min-height: 86px; padding: 1rem 1.1rem; transition: background var(--ui-motion-fast) ease, border-color var(--ui-motion-fast) ease, transform var(--ui-motion-fast) ease; }
+    .qci:hover { background: var(--ui-surface-hover) !important; border-color: var(--ui-primary) !important; transform: translateY(-2px); }
+    .qci-t { color: var(--ui-text) !important; font-size: .95rem; font-weight: 700; margin-bottom: .25rem; }
+    .qci-d { color: var(--ui-text-muted) !important; font-size: .83rem; }
+    .wp { margin-bottom: 1rem; padding: 1.25rem; }
+    [data-testid="stExpander"] summary, details summary { background: var(--ui-surface) !important; color: var(--ui-text) !important; min-height: 44px; }
+    [data-testid="stExpander"] summary *, details summary * { color: var(--ui-text) !important; }
+    [data-testid="stFileUploaderDropzone"], section[data-testid="stFileUploader"] { background: var(--ui-surface-subtle) !important; border: 1px dashed var(--ui-border-strong) !important; border-radius: var(--ui-radius-md) !important; }
+    [data-testid="stFileUploaderDropzone"] * { color: var(--ui-text-muted) !important; }
+    [data-testid="stFileUploaderDropzone"] button { background: var(--ui-primary) !important; color: var(--ui-primary-text) !important; border: 0 !important; border-radius: var(--ui-radius-sm) !important; }
+
+    /* Action buttons and progress feedback. */
+    .stButton > button, [data-testid="stChatInput"] button {
+        background: var(--ui-primary) !important;
+        border: 1px solid var(--ui-primary) !important;
+        border-radius: var(--ui-radius-sm) !important;
+        color: var(--ui-primary-text) !important;
+        font-weight: 600;
+        min-height: 42px !important;
+        transition: background var(--ui-motion-fast) ease, border-color var(--ui-motion-fast) ease, transform var(--ui-motion-fast) ease;
+    }
+    .stButton > button:hover, [data-testid="stChatInput"] button:hover { background: var(--ui-primary-hover) !important; border-color: var(--ui-primary-hover) !important; transform: translateY(-1px); }
+    .stButton > button:active, [data-testid="stChatInput"] button:active { transform: translateY(0); }
+    [data-testid="stAlert"], [data-testid="stStatusWidget"] { border-radius: var(--ui-radius-md) !important; }
+    [data-testid="stAlert"] [data-testid="stMarkdownContainer"] * { color: var(--ui-text) !important; }
+    [data-testid="stAlert"]:has([data-testid="stAlertContentWarning"]) { background: var(--ui-warning-bg) !important; color: var(--ui-warning-text) !important; }
+    [data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]) { background: var(--ui-info-bg) !important; color: var(--ui-info-text) !important; }
+    [data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]) { background: var(--ui-success-bg) !important; color: var(--ui-success-text) !important; }
+    [data-testid="stAlert"]:has([data-testid="stAlertContentError"]) { background: var(--ui-danger-bg) !important; color: var(--ui-danger-text) !important; }
+    .sc { align-items: center; border-radius: 999px; display: inline-flex; font-size: .82rem; font-weight: 700; gap: .4rem; min-height: 36px; padding: .4rem .8rem; }
+    [data-testid="stSidebar"] .sc-on, section[data-testid="stSidebar"] .sc-on { background: var(--ui-success-bg) !important; border: 1px solid var(--ui-success-text) !important; color: var(--ui-success-text) !important; }
+    [data-testid="stSidebar"] .sc-off, section[data-testid="stSidebar"] .sc-off { background: var(--ui-danger-bg) !important; border: 1px solid var(--ui-danger-text) !important; color: var(--ui-danger-text) !important; }
+
+    /* Chat workspace and fixed input affordance. */
+    [data-testid="stChatMessage"], .stChatMessage, [data-testid="stChatMessageContent"] { background: var(--ui-surface) !important; border: 1px solid var(--ui-border) !important; border-radius: var(--ui-radius-lg) !important; color: var(--ui-text) !important; margin-bottom: .75rem !important; padding: .85rem 1rem !important; }
+    [data-testid="stChatMessage"] *, .stChatMessage * { color: var(--ui-text) !important; }
+    [data-testid="stBottom"], [data-testid="stBottom"] > div { background: transparent !important; padding-bottom: .75rem !important; }
+    [data-testid="stChatInput"], [data-testid="stChatInput"] > div:first-child, [data-testid="stChatInput"] > div:first-child > div { background: var(--ui-surface) !important; border: 1px solid var(--ui-border-strong) !important; border-radius: var(--ui-radius-lg) !important; box-shadow: var(--ui-shadow) !important; }
+    [data-testid="stChatInput"] textarea { background: transparent !important; border: 0 !important; color: var(--ui-text) !important; outline: 0 !important; }
+    [data-testid="stChatInput"] button svg { color: var(--ui-primary-text) !important; fill: var(--ui-primary-text) !important; }
+
+    header[data-testid="stHeader"], footer, #MainMenu, [data-testid="stHeaderActionElements"], [data-testid="stAppDeployButton"] { background: transparent !important; display: none !important; visibility: hidden !important; }
+    @media (max-width: 900px) {
+        [data-testid="stMainBlockContainer"] { padding: 1.25rem 1rem 4rem; }
+        .hdr { justify-content: flex-start; }
+        .qc { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+    </style>""".replace("__ROOT_TOKENS__", root_tokens)
+    st.markdown(css, unsafe_allow_html=True)
 
 
 def main():
