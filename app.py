@@ -1533,6 +1533,15 @@ __ROOT_TOKENS__
         transform: translateX(300px) !important;
         z-index: 1001 !important;
     }
+    section[data-testid="stSidebar"][aria-expanded="false"] [data-testid="stSidebarCollapseButton"] button {
+        background: var(--ui-sidebar-bg) !important;
+        border-color: var(--ui-sidebar-border) !important;
+        box-shadow: var(--ui-shadow) !important;
+    }
+    section[data-testid="stSidebar"][aria-expanded="false"] [data-testid="stSidebarCollapseButton"] button:hover {
+        background: var(--ui-surface-hover) !important;
+        border-color: var(--ui-focus) !important;
+    }
     section[data-testid="stSidebar"][aria-expanded="false"] [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"] {
         transform: rotate(180deg);
     }
