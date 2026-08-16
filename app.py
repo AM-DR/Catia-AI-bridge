@@ -1480,7 +1480,67 @@ __ROOT_TOKENS__
         background: var(--ui-sidebar-bg) !important;
         border-right: 1px solid var(--ui-sidebar-border) !important;
     }
-    [data-testid="stSidebarContent"] { padding: 2.25rem 1.5rem 1.5rem; }
+    [data-testid="stSidebarContent"] { padding: 0 1.5rem 1.5rem; }
+    [data-testid="stSidebarHeader"] {
+        display: block !important;
+        height: 3.25rem !important;
+        min-height: 3.25rem !important;
+        position: relative !important;
+        z-index: 20 !important;
+    }
+    [data-testid="stSidebarCollapseButton"] {
+        display: flex !important;
+        position: absolute !important;
+        top: .5rem !important;
+        right: 0 !important;
+        visibility: visible !important;
+        z-index: 21 !important;
+    }
+    [data-testid="stSidebarCollapseButton"] button,
+    [data-testid="collapsedControl"] button,
+    [data-testid="stSidebarCollapsedControl"] button {
+        align-items: center !important;
+        background: transparent !important;
+        border: 1px solid transparent !important;
+        border-radius: var(--ui-radius-sm) !important;
+        color: var(--ui-sidebar-text) !important;
+        display: inline-flex !important;
+        height: 44px !important;
+        justify-content: center !important;
+        min-height: 44px !important;
+        min-width: 44px !important;
+        padding: 0 !important;
+        visibility: visible !important;
+        width: 44px !important;
+    }
+    [data-testid="stSidebarCollapseButton"] button:hover,
+    [data-testid="collapsedControl"] button:hover,
+    [data-testid="stSidebarCollapsedControl"] button:hover {
+        background: var(--ui-surface-hover) !important;
+        border-color: var(--ui-sidebar-border) !important;
+    }
+    [data-testid="stSidebarCollapseButton"] button:focus-visible,
+    [data-testid="collapsedControl"] button:focus-visible,
+    [data-testid="stSidebarCollapsedControl"] button:focus-visible {
+        outline: 2px solid var(--ui-focus) !important;
+        outline-offset: 2px !important;
+    }
+    section[data-testid="stSidebar"][aria-expanded="false"] [data-testid="stSidebarCollapseButton"] {
+        left: .5rem !important;
+        position: fixed !important;
+        right: auto !important;
+        top: .5rem !important;
+        transform: translateX(300px) !important;
+        z-index: 1001 !important;
+    }
+    section[data-testid="stSidebar"][aria-expanded="false"] [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"] {
+        transform: rotate(180deg);
+    }
+    [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"],
+    [data-testid="collapsedControl"] [data-testid="stIconMaterial"],
+    [data-testid="stSidebarCollapsedControl"] [data-testid="stIconMaterial"] {
+        color: var(--ui-sidebar-text) !important;
+    }
     section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2,
     section[data-testid="stSidebar"] h3, section[data-testid="stSidebar"] h4,
     section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] p,
@@ -1707,7 +1767,13 @@ __ROOT_TOKENS__
     [data-testid="stChatInput"] textarea { background: transparent !important; border: 0 !important; color: var(--ui-text) !important; outline: 0 !important; }
     [data-testid="stChatInput"] button svg { color: var(--ui-primary-text) !important; fill: var(--ui-primary-text) !important; }
 
-    header[data-testid="stHeader"], footer, #MainMenu, [data-testid="stHeaderActionElements"], [data-testid="stAppDeployButton"] { background: transparent !important; display: none !important; visibility: hidden !important; }
+    header[data-testid="stHeader"] { background: transparent !important; }
+    footer, #MainMenu, [data-testid="stHeaderActionElements"], [data-testid="stAppDeployButton"] { display: none !important; visibility: hidden !important; }
+    [data-testid="collapsedControl"], [data-testid="stSidebarCollapsedControl"] {
+        display: flex !important;
+        visibility: visible !important;
+        z-index: 1000 !important;
+    }
     @media (max-width: 900px) {
         [data-testid="stMainBlockContainer"] { padding: 1.25rem 1rem 4rem; }
         .hdr { justify-content: flex-start; }
