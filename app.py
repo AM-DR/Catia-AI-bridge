@@ -1800,8 +1800,12 @@ def main():
 
     # Sidebar
     st.sidebar.markdown("<h3 style='font-size:1.1rem;font-weight:700;margin-bottom:2px'>📐 CATIA AI Studio</h3>", unsafe_allow_html=True)
-    st.sidebar.markdown("<div style='font-size:0.82rem;opacity:0.8;margin-bottom:12px'>Made by <b>AM-DR</b></div>", unsafe_allow_html=True)
-    theme = st.sidebar.selectbox("🎨 UI Theme", ["🌙 Dark", "☀️ Light", "🔵 Ocean Blue"])
+    theme_options = ["🌙 Dark", "☀️ Light", "🔵 Ocean Blue"]
+    qp_theme = str(st.query_params.get("theme", ""))
+    idx = 0
+    if "light" in qp_theme.lower(): idx = 1
+    elif "ocean" in qp_theme.lower() or "blue" in qp_theme.lower(): idx = 2
+    theme = st.sidebar.selectbox("🎨 UI Theme", theme_options, index=idx)
     inject_css(theme)
     st.sidebar.markdown("---")
     provider = st.sidebar.selectbox("🤖 LLM Engine",
