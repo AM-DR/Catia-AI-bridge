@@ -62,17 +62,20 @@ class StreamlitAgentProgressHandler(BaseCallbackHandler):
         self.sc = sc
         self.thinking_container = None
         self.thought_buffer = ""
+        self.last_update = 0
 
     def on_llm_start(self, *a, **k):
         self.thought_buffer = ""
+        self.last_update = 0
         self.thinking_container = self.sc.empty()
-        self.thinking_container.markdown("🧠 **Analyzing request & planning CATIA geometry…**")
+        self.thinking_container.markdown("🧠 **Generating response & CAD geometry…**")
 
     def on_llm_new_token(self, token: str, **k):
         if token:
             self.thought_buffer += token
-            if self.thinking_container:
-                # Show live streaming preview (last 200 chars)
+            now = time.time()
+            if self.thinking_container and (now - self.last_update > 0.12):
+                self.last_update = now
                 clean_prev = self.thought_buffer[-200:].replace("\n", " ")
                 self.thinking_container.markdown(f"💭 *Thinking:* `{clean_prev}`")
 
@@ -706,9 +709,12 @@ def create_circular_pattern_in_catia(instance_count=6, circle_radius=45.0, hole_
 # ==============================================================================
 
 def execute_python_catia_code(code_snippet: str):
+    init_com()
     code_clean = code_snippet.strip()
     if code_clean.startswith("```python"):
         code_clean = code_clean[9:]
+    elif code_clean.startswith("```py"):
+        code_clean = code_clean[5:]
     elif code_clean.startswith("```"):
         code_clean = code_clean[3:]
     if code_clean.endswith("```"):
@@ -757,7 +763,13 @@ def execute_python_catia_code(code_snippet: str):
 
     try:
         exec(code_clean, globals(), exec_scope)
-        pc.Update()
+        try:
+            pc.Update()
+        except Exception:
+            try:
+                part.update()
+            except Exception:
+                pass
         try:
             viewer = caa.active_window.active_viewer
             viewer.reframe()
@@ -868,7 +880,7 @@ def instantiate_llm(provider, model_name, api_key, custom_base_url=""):
         return ChatAnthropic(model=m or "claude-3-5-sonnet-20240620", api_key=api_key, temperature=0.0, streaming=True)
     if provider == "OpenRouter":
         if not api_key: return None
-        return ChatOpenAI(model=m or "google/gemini-2.5-flash", api_key=api_key,
+        return ChatOpenAI(model=m or "nvidia/nemotron-3.5-lightning:free", api_key=api_key,
                           base_url="https://openrouter.ai/api/v1", temperature=0.0, streaming=True)
     return None
 
@@ -928,18 +940,17 @@ The execution environment pre-populates these objects:
         out_text = raw_res.content if hasattr(raw_res, "content") else str(raw_res)
 
         # Extract and execute any Python CAD code directly in CATIA V5
-        m = re.search(r'```(?:python)?\s*(.*?)\s*```', out_text, re.DOTALL)
+        m = re.search(r'```(?:python|py)?\s*(.*?)\s*```', out_text, re.DOTALL | re.IGNORECASE)
         if m:
             code_to_run = m.group(1).strip()
-            if any(k in code_to_run for k in ["AddNewPad", "AddNewShaft", "AddNewRemove", "part_com", "Sketches", "ShapeFactory", "sf.", "main_body"]):
-                if status_container:
-                    status_container.markdown("##### 📝 Live Python CAD Execution:")
-                    status_container.code(code_to_run, language="python")
-                ok, exec_m = execute_python_catia_code(code_to_run)
-                if ok:
-                    out_text += f"\n\n✅ *Executed custom CAD script in CATIA V5.*"
-                else:
-                    out_text += f"\n\n⚠️ *Execution notice:* {exec_m}"
+            if status_container:
+                status_container.markdown("##### 📝 Live Python CAD Execution:")
+                status_container.code(code_to_run, language="python")
+            ok, exec_m = execute_python_catia_code(code_to_run)
+            if ok:
+                out_text += f"\n\n✅ *Executed custom CAD script in CATIA V5.*"
+            else:
+                out_text += f"\n\n⚠️ *Execution notice:* {exec_m}"
         return out_text
     except Exception as e:
         return f"⚠️ Generation error: `{e}`"
@@ -1875,25 +1886,8 @@ def main():
     provider = st.sidebar.selectbox("🤖 LLM Engine",
         ["OpenRouter", "OpenAI", "Anthropic", "Local (llama.cpp / Local Server)", "Local (Ollama)"])
     dm = {"Local (llama.cpp / Local Server)": "local-model", "Local (Ollama)": "llama3.2-vision",
-          "OpenAI": "gpt-4o", "Anthropic": "claude-3-5-sonnet-20240620", "OpenRouter": "google/gemini-2.5-flash"}
-    
-    if provider == "OpenRouter":
-        fast_models = [
-            "⚡ google/gemini-2.5-flash (Ultra Fast ~1s)",
-            "⚡ openai/gpt-4o-mini (Fast ~1.5s)",
-            "🧠 deepseek/deepseek-chat (Smart & Fast)",
-            "🎨 anthropic/claude-3.5-sonnet (High Precision)",
-            "🦙 meta-llama/llama-3.3-70b-instruct",
-            "✏️ Custom Model..."
-        ]
-        sel_preset = st.sidebar.selectbox("⚡ Fast Speed Presets", fast_models, index=0)
-        if "Custom" in sel_preset:
-            model_name = st.sidebar.text_input("🧠 Model ID", value="stealth/ox-alpha")
-        else:
-            model_name = sel_preset.split(" ")[1]
-            st.sidebar.caption(f"Active Model: `{model_name}`")
-    else:
-        model_name = st.sidebar.text_input("🧠 Model", value=dm[provider])
+          "OpenAI": "gpt-4o", "Anthropic": "claude-3-5-sonnet-20240620", "OpenRouter": "nvidia/nemotron-3.5-lightning:free"}
+    model_name = st.sidebar.text_input("🧠 Model", value=dm.get(provider, "nvidia/nemotron-3.5-lightning:free"))
 
     custom_base_url = ""
     if provider == "Local (llama.cpp / Local Server)":
