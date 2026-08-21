@@ -8,7 +8,7 @@ Boolean-subtracts them from MainBody – direction-independent and bulletproof.
 ================================================================================
 """
 
-import os, sys, io, math, base64
+import os, sys, io, math, base64, re, time
 import streamlit as st
 import pythoncom
 import win32com.client
@@ -22,7 +22,7 @@ except ImportError:
 
 from langchain_core.tools import tool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.callbacks import BaseCallbackHandler
 
 try:
@@ -758,6 +758,12 @@ def execute_python_catia_code(code_snippet: str):
     try:
         exec(code_clean, globals(), exec_scope)
         pc.Update()
+        try:
+            viewer = caa.active_window.active_viewer
+            viewer.reframe()
+            viewer.update()
+        except Exception:
+            pass
         st.session_state["last_execution_status"] = (True, "Executed custom CATIA script successfully.")
         return True, "Executed custom CATIA script successfully."
     except Exception as e:
@@ -1505,6 +1511,8 @@ def _theme_tokens(theme):
             "input-bg": "#ffffff", "input-text": "#0f172a", "input-border": "#b8c7d9",
             "input-hover": "#f8fbff", "control-suffix": "#f3f6fa", "control-suffix-text": "#334155",
             "chip-bg": "#eef2f7", "chip-text": "#475569", "shadow": "0 10px 30px rgba(15, 23, 42, .06)",
+            "code-bg": "#eef2f6", "code-text": "#0f172a", "code-border": "#cbd5e1",
+            "thinking-bg": "#f8fafc", "thinking-text": "#1e293b", "thinking-border": "#cbd5e1",
             "warning-bg": "#fef3c7", "warning-text": "#92400e", "info-bg": "#e0f2fe", "info-text": "#075985",
             "success-bg": "#dcfce7", "success-text": "#166534", "danger-bg": "#fee2e2", "danger-text": "#991b1b",
         }}
@@ -1520,6 +1528,8 @@ def _theme_tokens(theme):
             "input-bg": "#1b2a40", "input-text": "#f0f9ff", "input-border": "#334c6b",
             "input-hover": "#21354f", "control-suffix": "#152238", "control-suffix-text": "#d9f2ff",
             "chip-bg": "#dff3ff", "chip-text": "#03648c", "shadow": "0 10px 28px rgba(14, 116, 144, .08)",
+            "code-bg": "#e0f2fe", "code-text": "#0369a1", "code-border": "#bae6fd",
+            "thinking-bg": "#f0f9ff", "thinking-text": "#0c4a6e", "thinking-border": "#7dd3fc",
             "warning-bg": "#fef3c7", "warning-text": "#92400e", "info-bg": "#dff4ff", "info-text": "#075985",
             "success-bg": "#dcfce7", "success-text": "#166534", "danger-bg": "#fee2e2", "danger-text": "#991b1b",
         }}
@@ -1534,6 +1544,8 @@ def _theme_tokens(theme):
         "input-bg": "#232a33", "input-text": "#f4f7fb", "input-border": "#465261",
         "input-hover": "#2a333e", "control-suffix": "#1a2027", "control-suffix-text": "#e7edf5",
         "chip-bg": "#242b34", "chip-text": "#b9c6d5", "shadow": "0 12px 32px rgba(0, 0, 0, .22)",
+        "code-bg": "#1e242c", "code-text": "#93c5fd", "code-border": "#374151",
+        "thinking-bg": "#181e25", "thinking-text": "#e2e8f0", "thinking-border": "#2e3846",
         "warning-bg": "#4a4316", "warning-text": "#fef08a", "info-bg": "#172d48", "info-text": "#bfdbfe",
         "success-bg": "#123d2a", "success-text": "#bbf7d0", "danger-bg": "#4a1b20", "danger-text": "#fecaca",
     }}
@@ -1859,7 +1871,48 @@ __ROOT_TOKENS__
     }
     .stButton > button:hover, [data-testid="stChatInput"] button:hover { background: var(--ui-primary-hover) !important; border-color: var(--ui-primary-hover) !important; transform: translateY(-1px); }
     .stButton > button:active, [data-testid="stChatInput"] button:active { transform: translateY(0); }
-    [data-testid="stAlert"], [data-testid="stStatusWidget"] { border-radius: var(--ui-radius-md) !important; }
+    /* Code blocks & inline code */
+    code, [data-testid="stMarkdownContainer"] code, .stMarkdown code {
+        background: var(--ui-code-bg) !important;
+        color: var(--ui-code-text) !important;
+        border: 1px solid var(--ui-code-border) !important;
+        border-radius: 6px !important;
+        padding: 2px 6px !important;
+        font-family: 'Consolas', 'Fira Code', 'Monaco', monospace !important;
+        font-size: 0.88em !important;
+    }
+    pre, [data-testid="stCodeBlock"], [data-testid="stCodeBlock"] pre {
+        background: var(--ui-code-bg) !important;
+        border: 1px solid var(--ui-code-border) !important;
+        border-radius: var(--ui-radius-md) !important;
+    }
+    pre code, [data-testid="stCodeBlock"] pre code {
+        background: transparent !important;
+        border: 0 !important;
+        padding: 0 !important;
+        color: var(--ui-code-text) !important;
+    }
+
+    /* Live Thinking & Status Widget */
+    [data-testid="stStatusWidget"] {
+        background: var(--ui-thinking-bg) !important;
+        border: 1px solid var(--ui-thinking-border) !important;
+        border-radius: var(--ui-radius-md) !important;
+        color: var(--ui-thinking-text) !important;
+    }
+    [data-testid="stStatusWidget"] summary,
+    [data-testid="stStatusWidget"] [data-testid="stMarkdownContainer"] *,
+    [data-testid="stStatusWidget"] p,
+    [data-testid="stStatusWidget"] span {
+        color: var(--ui-thinking-text) !important;
+    }
+    [data-testid="stStatusWidget"] code {
+        background: var(--ui-code-bg) !important;
+        color: var(--ui-code-text) !important;
+        border: 1px solid var(--ui-code-border) !important;
+    }
+
+    [data-testid="stAlert"] { border-radius: var(--ui-radius-md) !important; }
     [data-testid="stAlert"] [data-testid="stMarkdownContainer"] * { color: var(--ui-text) !important; }
     [data-testid="stAlert"]:has([data-testid="stAlertContentWarning"]) { background: var(--ui-warning-bg) !important; color: var(--ui-warning-text) !important; }
     [data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]) { background: var(--ui-info-bg) !important; color: var(--ui-info-text) !important; }
