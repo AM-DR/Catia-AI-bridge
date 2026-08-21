@@ -708,38 +708,82 @@ def create_circular_pattern_in_catia(instance_count=6, circle_radius=45.0, hole_
 # DYNAMIC PYTHON CODE EXECUTION & CATIA PROXIES
 # ==============================================================================
 
+class CatiaCOMElementProxy:
+    def __init__(self, real_elem):
+        self._elem = real_elem
+
+    @property
+    def com_object(self):
+        return self._elem
+
+    def __setattr__(self, name, value):
+        if name == "_elem":
+            super().__setattr__(name, value)
+            return
+        real_val = value._elem if hasattr(value, "_elem") else (value._sk if hasattr(value, "_sk") else value)
+        try:
+            setattr(self._elem, name, real_val)
+        except Exception:
+            pascal_name = "".join(w.capitalize() for w in name.split("_"))
+            try:
+                setattr(self._elem, pascal_name, real_val)
+            except Exception:
+                pass
+
+    def __getattr__(self, name):
+        if hasattr(self._elem, name):
+            return getattr(self._elem, name)
+        pascal_name = "".join(w.capitalize() for w in name.split("_"))
+        if hasattr(self._elem, pascal_name):
+            return getattr(self._elem, pascal_name)
+        def _dummy_method(*args, **kwargs):
+            return None
+        return _dummy_method
+
+
 class Catia2DFactoryProxy:
     def __init__(self, real_f2):
         self._f2 = real_f2
 
+    @property
+    def com_object(self):
+        return self._f2
+
     def CreateCircle(self, *args):
         if len(args) == 3:
-            return self._f2.CreateClosedCircle(float(args[0]), float(args[1]), float(args[2]))
-        return self._f2.CreateCircle(*args)
+            return CatiaCOMElementProxy(self._f2.CreateClosedCircle(float(args[0]), float(args[1]), float(args[2])))
+        return CatiaCOMElementProxy(self._f2.CreateCircle(*args))
 
     def create_circle(self, *args):
         return self.CreateCircle(*args)
 
     def CreateClosedCircle(self, x, y, r):
-        return self._f2.CreateClosedCircle(float(x), float(y), float(r))
+        return CatiaCOMElementProxy(self._f2.CreateClosedCircle(float(x), float(y), float(r)))
 
     def create_closed_circle(self, x, y, r):
-        return self._f2.CreateClosedCircle(float(x), float(y), float(r))
+        return self.CreateClosedCircle(x, y, r)
 
     def CreatePoint(self, x, y):
-        return self._f2.CreatePoint(float(x), float(y))
+        return CatiaCOMElementProxy(self._f2.CreatePoint(float(x), float(y)))
 
     def create_point(self, x, y):
         return self.CreatePoint(x, y)
 
     def CreateLine(self, x1, y1, x2, y2):
-        return self._f2.CreateLine(float(x1), float(y1), float(x2), float(y2))
+        return CatiaCOMElementProxy(self._f2.CreateLine(float(x1), float(y1), float(x2), float(y2)))
 
     def create_line(self, x1, y1, x2, y2):
         return self.CreateLine(x1, y1, x2, y2)
 
     def __getattr__(self, name):
-        return getattr(self._f2, name)
+        if hasattr(self._f2, name):
+            return getattr(self._f2, name)
+        pascal_name = "".join(w.capitalize() for w in name.split("_"))
+        if hasattr(self._f2, pascal_name):
+            return getattr(self._f2, pascal_name)
+        def _dummy_method(*args, **kwargs):
+            return None
+        return _dummy_method
 
 
 class CatiaSketchProxy:
@@ -773,6 +817,25 @@ class CatiaSketchProxy:
     @property
     def factory_2d(self):
         return self.Factory2D
+
+    @property
+    def CenterLine(self):
+        try: return self._sk.CenterLine
+        except Exception: return None
+
+    @CenterLine.setter
+    def CenterLine(self, val):
+        real_val = val._elem if hasattr(val, "_elem") else val
+        try: self._sk.CenterLine = real_val
+        except Exception: pass
+
+    @property
+    def center_line(self):
+        return self.CenterLine
+
+    @center_line.setter
+    def center_line(self, val):
+        self.CenterLine = val
 
     def CreateClosedCircle(self, *args, **kwargs):
         return self.Factory2D.CreateClosedCircle(*args, **kwargs)
@@ -911,14 +974,14 @@ class CatiaShapeFactoryProxy:
 
     def AddNewPad(self, sketch, depth):
         real_sk = sketch._sk if hasattr(sketch, "_sk") else sketch
-        return self._sf.AddNewPad(real_sk, float(depth))
+        return CatiaCOMElementProxy(self._sf.AddNewPad(real_sk, float(depth)))
 
     def add_new_pad(self, sketch, depth):
         return self.AddNewPad(sketch, depth)
 
     def AddNewPocket(self, sketch, depth):
         real_sk = sketch._sk if hasattr(sketch, "_sk") else sketch
-        return self._sf.AddNewPocket(real_sk, float(depth))
+        return CatiaCOMElementProxy(self._sf.AddNewPocket(real_sk, float(depth)))
 
     def add_new_pocket(self, sketch, depth):
         return self.AddNewPocket(sketch, depth)
@@ -934,9 +997,8 @@ class CatiaShapeFactoryProxy:
             self._pc.InWorkObject = self._mb
         except Exception: pass
         try:
-            return self._sf.AddNewRemove(real_b)
+            return CatiaCOMElementProxy(self._sf.AddNewRemove(real_b))
         except Exception:
-            # Automatic fallback: Extract sketch from cut body and create pocket directly
             try:
                 for i in range(1, real_b.Sketches.Count + 1):
                     sk = real_b.Sketches.Item(i)
@@ -948,7 +1010,7 @@ class CatiaShapeFactoryProxy:
                             if hasattr(sh, "FirstLimit"):
                                 depth = float(sh.FirstLimit.Dimension.Value)
                     except Exception: pass
-                    return self._sf.AddNewPocket(sk, depth)
+                    return CatiaCOMElementProxy(self._sf.AddNewPocket(sk, depth))
             except Exception:
                 pass
             return None
@@ -967,7 +1029,7 @@ class CatiaShapeFactoryProxy:
             self._pc.InWorkObject = self._mb
         except Exception: pass
         try:
-            return self._sf.AddNewAdd(real_b)
+            return CatiaCOMElementProxy(self._sf.AddNewAdd(real_b))
         except Exception:
             return None
 
@@ -976,13 +1038,13 @@ class CatiaShapeFactoryProxy:
 
     def AddNewShaft(self, sketch):
         real_sk = sketch._sk if hasattr(sketch, "_sk") else sketch
-        return self._sf.AddNewShaft(real_sk)
+        return CatiaCOMElementProxy(self._sf.AddNewShaft(real_sk))
 
     def add_new_shaft(self, sketch):
         return self.AddNewShaft(sketch)
 
     def AddNewCircPattern(self, *args, **kwargs):
-        return self._sf.AddNewCircPattern(*args, **kwargs)
+        return CatiaCOMElementProxy(self._sf.AddNewCircPattern(*args, **kwargs))
 
     def add_new_circ_pattern(self, *args, **kwargs):
         return self.AddNewCircPattern(*args, **kwargs)
@@ -1487,15 +1549,11 @@ def run_agent_with_live_status(llm, user_input, image_bytes=None, image_mime="im
         sk = main_body.sketches.add(plane_zx)
         f2 = sk.open_edition()
         sk.center_line = f2.create_line(0.0, 0.0, 0.0, 100.0)
-        # Closed U-shaped profile with 5mm walls and 8mm base
         pts = [(0.0, 0.0), (40.0, 0.0), (40.0, 90.0), (35.0, 90.0), (35.0, 8.0), (0.0, 8.0)]
-        p2d = []
-        for x, z in pts:
-            p2d.append(f2.create_point(x, z))
         for i in range(len(pts)):
-            ln = f2.create_line(pts[i][0], pts[i][1], pts[(i+1)%len(pts)][0], pts[(i+1)%len(pts)][1])
-            ln.start_point = p2d[i]
-            ln.end_point = p2d[(i+1)%len(pts)]
+            p1 = pts[i]
+            p2 = pts[(i + 1) % len(pts)]
+            f2.create_line(p1[0], p1[1], p2[0], p2[1])
         sk.close_edition()
         shaft = shape_factory.add_new_shaft(sk)
         shaft.first_angle = 360.0
