@@ -1349,7 +1349,7 @@ def execute_python_catia_code(code_snippet: str):
     except Exception: pass
 
     try:
-        exec(code_clean, globals(), exec_scope)
+        exec(code_clean, exec_scope)
         try:
             pc.Update()
         except Exception:
@@ -1489,10 +1489,13 @@ def run_agent_with_live_status(llm, user_input, image_bytes=None, image_mime="im
         sk.center_line = f2.create_line(0.0, 0.0, 0.0, 100.0)
         # Closed U-shaped profile with 5mm walls and 8mm base
         pts = [(0.0, 0.0), (40.0, 0.0), (40.0, 90.0), (35.0, 90.0), (35.0, 8.0), (0.0, 8.0)]
-        p2d = [f2.create_point(x, z) for x, z in pts]
+        p2d = []
+        for x, z in pts:
+            p2d.append(f2.create_point(x, z))
         for i in range(len(pts)):
             ln = f2.create_line(pts[i][0], pts[i][1], pts[(i+1)%len(pts)][0], pts[(i+1)%len(pts)][1])
-            ln.start_point = p2d[i]; ln.end_point = p2d[(i+1)%len(pts)]
+            ln.start_point = p2d[i]
+            ln.end_point = p2d[(i+1)%len(pts)]
         sk.close_edition()
         shaft = shape_factory.add_new_shaft(sk)
         shaft.first_angle = 360.0
