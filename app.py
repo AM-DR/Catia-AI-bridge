@@ -709,15 +709,38 @@ def create_circular_pattern_in_catia(instance_count=6, circle_radius=45.0, hole_
 # ==============================================================================
 
 class CatiaCOMElementProxy:
-    def __init__(self, real_elem):
+    def __init__(self, real_elem, part_proxy=None):
         self._elem = real_elem
+        self._part = part_proxy
 
     @property
     def com_object(self):
         return self._elem
 
+    def Remove(self):
+        return self.delete()
+
+    def remove(self):
+        return self.delete()
+
+    def Delete(self):
+        return self.delete()
+
+    def delete(self):
+        try:
+            if self._part and hasattr(self._part, "_caa"):
+                sel = self._part._caa.ActiveDocument.Selection
+                sel.Clear()
+                sel.Add(self._elem)
+                sel.Delete()
+                sel.Clear()
+                return True
+        except Exception:
+            pass
+        return True
+
     def __setattr__(self, name, value):
-        if name == "_elem":
+        if name in ("_elem", "_part"):
             super().__setattr__(name, value)
             return
         real_val = value._elem if hasattr(value, "_elem") else (value._sk if hasattr(value, "_sk") else value)
@@ -741,9 +764,71 @@ class CatiaCOMElementProxy:
         return _dummy_method
 
 
+class CatiaShapesProxy:
+    def __init__(self, real_shapes, part_proxy=None):
+        self._shapes = real_shapes
+        self._part = part_proxy
+
+    @property
+    def com_object(self):
+        return self._shapes
+
+    @property
+    def Count(self):
+        try: return self._shapes.Count
+        except Exception: return 0
+
+    @property
+    def count(self):
+        return self.Count
+
+    def Item(self, idx):
+        return CatiaCOMElementProxy(self._shapes.Item(idx), self._part)
+
+    def item(self, idx):
+        return self.Item(idx)
+
+    def Remove(self, obj=None):
+        return self.delete(obj)
+
+    def remove(self, obj=None):
+        return self.delete(obj)
+
+    def Delete(self, obj=None):
+        return self.delete(obj)
+
+    def delete(self, obj=None):
+        if obj is not None:
+            if hasattr(obj, "delete"):
+                return obj.delete()
+            real_elem = obj._elem if hasattr(obj, "_elem") else obj
+            try:
+                if self._part and hasattr(self._part, "_caa"):
+                    sel = self._part._caa.ActiveDocument.Selection
+                    sel.Clear()
+                    sel.Add(real_elem)
+                    sel.Delete()
+                    sel.Clear()
+                    return True
+            except Exception:
+                pass
+        return True
+
+    def __getattr__(self, name):
+        if hasattr(self._shapes, name):
+            return getattr(self._shapes, name)
+        pascal_name = "".join(w.capitalize() for w in name.split("_"))
+        if hasattr(self._shapes, pascal_name):
+            return getattr(self._shapes, pascal_name)
+        def _dummy_method(*args, **kwargs):
+            return None
+        return _dummy_method
+
+
 class Catia2DFactoryProxy:
-    def __init__(self, real_f2):
+    def __init__(self, real_f2, part_proxy=None):
         self._f2 = real_f2
+        self._part = part_proxy
 
     @property
     def com_object(self):
@@ -751,26 +836,26 @@ class Catia2DFactoryProxy:
 
     def CreateCircle(self, *args):
         if len(args) == 3:
-            return CatiaCOMElementProxy(self._f2.CreateClosedCircle(float(args[0]), float(args[1]), float(args[2])))
-        return CatiaCOMElementProxy(self._f2.CreateCircle(*args))
+            return CatiaCOMElementProxy(self._f2.CreateClosedCircle(float(args[0]), float(args[1]), float(args[2])), self._part)
+        return CatiaCOMElementProxy(self._f2.CreateCircle(*args), self._part)
 
     def create_circle(self, *args):
         return self.CreateCircle(*args)
 
     def CreateClosedCircle(self, x, y, r):
-        return CatiaCOMElementProxy(self._f2.CreateClosedCircle(float(x), float(y), float(r)))
+        return CatiaCOMElementProxy(self._f2.CreateClosedCircle(float(x), float(y), float(r)), self._part)
 
     def create_closed_circle(self, x, y, r):
         return self.CreateClosedCircle(x, y, r)
 
     def CreatePoint(self, x, y):
-        return CatiaCOMElementProxy(self._f2.CreatePoint(float(x), float(y)))
+        return CatiaCOMElementProxy(self._f2.CreatePoint(float(x), float(y)), self._part)
 
     def create_point(self, x, y):
         return self.CreatePoint(x, y)
 
     def CreateLine(self, x1, y1, x2, y2):
-        return CatiaCOMElementProxy(self._f2.CreateLine(float(x1), float(y1), float(x2), float(y2)))
+        return CatiaCOMElementProxy(self._f2.CreateLine(float(x1), float(y1), float(x2), float(y2)), self._part)
 
     def create_line(self, x1, y1, x2, y2):
         return self.CreateLine(x1, y1, x2, y2)
@@ -787,16 +872,39 @@ class Catia2DFactoryProxy:
 
 
 class CatiaSketchProxy:
-    def __init__(self, real_sketch):
+    def __init__(self, real_sketch, part_proxy=None):
         self._sk = real_sketch
+        self._part = part_proxy
         self._f2 = None
 
     @property
     def com_object(self):
         return self._sk
 
+    def Remove(self):
+        return self.delete()
+
+    def remove(self):
+        return self.delete()
+
+    def Delete(self):
+        return self.delete()
+
+    def delete(self):
+        try:
+            if self._part and hasattr(self._part, "_caa"):
+                sel = self._part._caa.ActiveDocument.Selection
+                sel.Clear()
+                sel.Add(self._sk)
+                sel.Delete()
+                sel.Clear()
+                return True
+        except Exception:
+            pass
+        return True
+
     def OpenEdition(self):
-        self._f2 = Catia2DFactoryProxy(self._sk.OpenEdition())
+        self._f2 = Catia2DFactoryProxy(self._sk.OpenEdition(), self._part)
         return self._f2
 
     def open_edition(self):
@@ -879,6 +987,32 @@ class CatiaSketchesProxy:
     def com_object(self):
         return self._sks
 
+    def Remove(self, obj=None):
+        return self.delete(obj)
+
+    def remove(self, obj=None):
+        return self.delete(obj)
+
+    def Delete(self, obj=None):
+        return self.delete(obj)
+
+    def delete(self, obj=None):
+        if obj is not None:
+            if hasattr(obj, "delete"):
+                return obj.delete()
+            real_elem = obj._elem if hasattr(obj, "_elem") else (obj._sk if hasattr(obj, "_sk") else obj)
+            try:
+                if self._part and hasattr(self._part, "_caa"):
+                    sel = self._part._caa.ActiveDocument.Selection
+                    sel.Clear()
+                    sel.Add(real_elem)
+                    sel.Delete()
+                    sel.Clear()
+                    return True
+            except Exception:
+                pass
+        return True
+
     def Add(self, plane=None):
         if plane is None:
             real_plane = self._part.PlaneXY if self._part else None
@@ -897,12 +1031,12 @@ class CatiaSketchesProxy:
             real_plane = real_plane._com
 
         try:
-            return CatiaSketchProxy(self._sks.Add(real_plane))
+            return CatiaSketchProxy(self._sks.Add(real_plane), self._part)
         except Exception:
             if self._part:
                 p = self._part.PlaneXY
                 rp = p._com if hasattr(p, "_com") else p
-                return CatiaSketchProxy(self._sks.Add(rp))
+                return CatiaSketchProxy(self._sks.Add(rp), self._part)
             raise
 
     def add(self, plane=None):
@@ -929,6 +1063,26 @@ class CatiaBodyProxy:
     @property
     def sketches(self):
         return self.Sketches
+
+    @property
+    def Shapes(self):
+        return CatiaShapesProxy(self._com.Shapes, self._part)
+
+    @property
+    def shapes(self):
+        return self.Shapes
+
+    def Remove(self, obj=None):
+        return self.Shapes.Remove(obj)
+
+    def remove(self, obj=None):
+        return self.Shapes.Remove(obj)
+
+    def Delete(self, obj=None):
+        return self.Shapes.Delete(obj)
+
+    def delete(self, obj=None):
+        return self.Shapes.Delete(obj)
 
     def __getattr__(self, name):
         return getattr(self._com, name)
@@ -958,30 +1112,83 @@ class CatiaBodiesProxy:
     def item(self, idx):
         return self.Item(idx)
 
+    def Remove(self, obj=None):
+        if obj is not None:
+            if hasattr(obj, "delete"):
+                return obj.delete()
+            real_elem = obj._com if hasattr(obj, "_com") else obj
+            try:
+                if self._part and hasattr(self._part, "_caa"):
+                    sel = self._part._caa.ActiveDocument.Selection
+                    sel.Clear()
+                    sel.Add(real_elem)
+                    sel.Delete()
+                    sel.Clear()
+                    return True
+            except Exception:
+                pass
+        return True
+
+    def remove(self, obj=None):
+        return self.Remove(obj)
+
+    def Delete(self, obj=None):
+        return self.Remove(obj)
+
+    def delete(self, obj=None):
+        return self.Remove(obj)
+
     def __getattr__(self, name):
         return getattr(self._bodies, name)
 
 
 class CatiaShapeFactoryProxy:
-    def __init__(self, real_sf, part_com, main_body):
+    def __init__(self, real_sf, part_com, main_body, part_proxy=None):
         self._sf = real_sf
         self._pc = part_com
         self._mb = main_body
+        self._part = part_proxy
 
     @property
     def com_object(self):
         return self._sf
 
+    def Remove(self, obj=None):
+        return self.delete(obj)
+
+    def remove(self, obj=None):
+        return self.delete(obj)
+
+    def Delete(self, obj=None):
+        return self.delete(obj)
+
+    def delete(self, obj=None):
+        if obj is not None:
+            if hasattr(obj, "delete"):
+                return obj.delete()
+            real_elem = obj._elem if hasattr(obj, "_elem") else obj
+            try:
+                if self._part and hasattr(self._part, "_caa"):
+                    sel = self._part._caa.ActiveDocument.Selection
+                    sel.Clear()
+                    sel.Add(real_elem)
+                    sel.Delete()
+                    sel.Clear()
+                    return True
+            except Exception:
+                pass
+        return True
+
     def AddNewPad(self, sketch, depth):
         real_sk = sketch._sk if hasattr(sketch, "_sk") else sketch
-        return CatiaCOMElementProxy(self._sf.AddNewPad(real_sk, float(depth)))
+        return CatiaCOMElementProxy(self._sf.AddNewPad(real_sk, float(depth)), self._part)
 
     def add_new_pad(self, sketch, depth):
         return self.AddNewPad(sketch, depth)
 
     def AddNewPocket(self, sketch, depth):
         real_sk = sketch._sk if hasattr(sketch, "_sk") else sketch
-        return CatiaCOMElementProxy(self._sf.AddNewPocket(real_sk, float(depth)))
+        return CatiaCOMElementProxy(self._sf.AddNewPocket(real_sk, float(depth)), self._part)
 
     def add_new_pocket(self, sketch, depth):
         return self.AddNewPocket(sketch, depth)
@@ -997,7 +1204,7 @@ class CatiaShapeFactoryProxy:
             self._pc.InWorkObject = self._mb
         except Exception: pass
         try:
-            return CatiaCOMElementProxy(self._sf.AddNewRemove(real_b))
+            return CatiaCOMElementProxy(self._sf.AddNewRemove(real_b), self._part)
         except Exception:
             try:
                 for i in range(1, real_b.Sketches.Count + 1):
@@ -1010,7 +1217,7 @@ class CatiaShapeFactoryProxy:
                             if hasattr(sh, "FirstLimit"):
                                 depth = float(sh.FirstLimit.Dimension.Value)
                     except Exception: pass
-                    return CatiaCOMElementProxy(self._sf.AddNewPocket(sk, depth))
+                    return CatiaCOMElementProxy(self._sf.AddNewPocket(sk, depth), self._part)
             except Exception:
                 pass
             return None
@@ -1029,7 +1236,7 @@ class CatiaShapeFactoryProxy:
             self._pc.InWorkObject = self._mb
         except Exception: pass
         try:
-            return CatiaCOMElementProxy(self._sf.AddNewAdd(real_b))
+            return CatiaCOMElementProxy(self._sf.AddNewAdd(real_b), self._part)
         except Exception:
             return None
 
@@ -1038,13 +1245,13 @@ class CatiaShapeFactoryProxy:
 
     def AddNewShaft(self, sketch):
         real_sk = sketch._sk if hasattr(sketch, "_sk") else sketch
-        return CatiaCOMElementProxy(self._sf.AddNewShaft(real_sk))
+        return CatiaCOMElementProxy(self._sf.AddNewShaft(real_sk), self._part)
 
     def add_new_shaft(self, sketch):
         return self.AddNewShaft(sketch)
 
     def AddNewCircPattern(self, *args, **kwargs):
-        return CatiaCOMElementProxy(self._sf.AddNewCircPattern(*args, **kwargs))
+        return CatiaCOMElementProxy(self._sf.AddNewCircPattern(*args, **kwargs), self._part)
 
     def add_new_circ_pattern(self, *args, **kwargs):
         return self.AddNewCircPattern(*args, **kwargs)
@@ -1122,6 +1329,26 @@ class CatiaPartProxy:
     @property
     def hybrid_shape_factory(self):
         return self.HybridShapeFactory
+
+    @property
+    def Shapes(self):
+        return CatiaShapesProxy(self._com.MainBody.Shapes, self)
+
+    @property
+    def shapes(self):
+        return self.Shapes
+
+    def Remove(self, obj=None):
+        return self.Shapes.Remove(obj)
+
+    def remove(self, obj=None):
+        return self.Shapes.Remove(obj)
+
+    def Delete(self, obj=None):
+        return self.Shapes.Delete(obj)
+
+    def delete(self, obj=None):
+        return self.Shapes.Delete(obj)
 
     @property
     def Bodies(self):
@@ -1556,14 +1783,16 @@ def run_agent_with_live_status(llm, user_input, image_bytes=None, image_mime="im
             f2.create_line(p1[0], p1[1], p2[0], p2[1])
         sk.close_edition()
         shaft = shape_factory.add_new_shaft(sk)
-        shaft.first_angle = 360.0
-     2. Hollow Loop Handle (on plane_yz):
-        sk_h = main_body.sketches.add(plane_yz)
+     2. Hollow Loop Handle (Fused to body on plane_zx):
+        sk_h = main_body.sketches.add(plane_zx)
         f2_h = sk_h.open_edition()
-        f2_h.create_closed_circle(42.0, 45.0, 20.0)
-        f2_h.create_closed_circle(42.0, 45.0, 13.0)
+        f2_h.create_closed_circle(50.0, 50.0, 20.0)
+        f2_h.create_closed_circle(50.0, 50.0, 12.0)
         sk_h.close_edition()
-        pad_h = shape_factory.add_new_pad(sk_h, 15.0)
+        pad_h = shape_factory.add_new_pad(sk_h, 7.5)
+        pad_h.is_symmetric = True
+   - For Feature Deletion / Modification (e.g. "remove the handle", "delete pocket"):
+     `part.shapes.remove(pad_h)` or `part.shapes.item(part.shapes.count).delete()` or `part.selection.delete()`
    - Put executable Python code inside a ```python ... ``` block at the end and conclude with `part.update()`.
 
 Pre-injected variables: `caa`, `part`, `part_com`, `main_body`, `shape_factory`, `plane_xy`, `plane_yz`, `plane_zx`.
