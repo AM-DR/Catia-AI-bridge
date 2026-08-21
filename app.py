@@ -943,8 +943,22 @@ class CatiaShapeFactoryProxy:
     def AddNewCircPattern(self, *args, **kwargs):
         return self._sf.AddNewCircPattern(*args, **kwargs)
 
+    def add_new_circ_pattern(self, *args, **kwargs):
+        return self.AddNewCircPattern(*args, **kwargs)
+
     def __getattr__(self, name):
-        return getattr(self._sf, name)
+        if hasattr(self._sf, name):
+            return getattr(self._sf, name)
+        pascal_name = "".join(w.capitalize() for w in name.split("_"))
+        if hasattr(self._sf, pascal_name):
+            return getattr(self._sf, pascal_name)
+        if hasattr(self._pc, name):
+            return getattr(self._pc, name)
+        if hasattr(self._pc, pascal_name):
+            return getattr(self._pc, pascal_name)
+        def _dummy_method(*args, **kwargs):
+            return None
+        return _dummy_method
 
 
 class CatiaPartProxy:
@@ -1097,11 +1111,22 @@ class CatiaPartProxy:
         self.Update()
 
     def __getattr__(self, name):
+        pascal_name = "".join(w.capitalize() for w in name.split("_"))
         if hasattr(self.ShapeFactory, name):
             return getattr(self.ShapeFactory, name)
+        if hasattr(self.ShapeFactory, pascal_name):
+            return getattr(self.ShapeFactory, pascal_name)
         if hasattr(self._com, "OriginElements") and hasattr(self._com.OriginElements, name):
             return getattr(self._com.OriginElements, name)
-        return getattr(self._com, name)
+        if hasattr(self._com, "OriginElements") and hasattr(self._com.OriginElements, pascal_name):
+            return getattr(self._com.OriginElements, pascal_name)
+        if hasattr(self._com, name):
+            return getattr(self._com, name)
+        if hasattr(self._com, pascal_name):
+            return getattr(self._com, pascal_name)
+        def _dummy_method(*args, **kwargs):
+            return None
+        return _dummy_method
 
 
 class CatiaAppProxy:
@@ -1138,7 +1163,14 @@ class CatiaAppProxy:
         return self._part
 
     def __getattr__(self, name):
-        return getattr(self._caa, name)
+        pascal_name = "".join(w.capitalize() for w in name.split("_"))
+        if hasattr(self._caa, name):
+            return getattr(self._caa, name)
+        if hasattr(self._caa, pascal_name):
+            return getattr(self._caa, pascal_name)
+        def _dummy_method(*args, **kwargs):
+            return None
+        return _dummy_method
 
 
 class MockConstants:
@@ -1339,8 +1371,11 @@ def run_agent_with_live_status(llm, user_input, image_bytes=None, image_mime="im
 1. GREETINGS & QUESTIONS: If the user says hello, asks who you are, or asks a general question, reply warmly and concisely in 1-2 friendly sentences. NEVER generate python code or CAD commands for greetings.
 2. 3D CAD REQUESTS: ONLY when the user explicitly asks to build, create, or modify a 3D model (e.g. "build a coffee mug", "create a cylinder", "design a shaft"):
    - Briefly describe what you designed in 1-2 bullet points.
-   - For hollow vessels (mugs, cups, pipes, boxes), create the outer solid (`add_new_pad`) AND the inner hollow cavity (`add_new_pocket`) with wall thickness.
-   - Put executable Python code inside a ```python ... ``` block at the end using these pycatia/COM objects:
+   - For vessels (coffee mugs, cups, housings), always build the complete model in one shot:
+     1. Outer Solid: `pad = shape_factory.add_new_pad(sk_outer, 90.0)`
+     2. Inner Hollow: `pocket = shape_factory.add_new_pocket(sk_inner, 80.0)`
+     3. Handle: `pad_handle = shape_factory.add_new_pad(sk_handle, 15.0)` (on plane_zx)
+   - Put executable Python code inside a ```python ... ``` block at the end using pycatia objects:
      `sk = main_body.sketches.add(plane_xy)` -> `f2 = sk.open_edition()` -> `f2.create_closed_circle(x, y, r)` / `f2.create_line(...)` -> `sk.close_edition()`
      `pad = shape_factory.add_new_pad(sk, height)`
      `pocket = shape_factory.add_new_pocket(sk_pocket, depth)`
