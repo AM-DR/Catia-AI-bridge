@@ -705,8 +705,110 @@ def create_circular_pattern_in_catia(instance_count=6, circle_radius=45.0, hole_
 
 
 # ==============================================================================
-# DYNAMIC PYTHON CODE EXECUTION & INSPECTOR
+# DYNAMIC PYTHON CODE EXECUTION & CATIA PROXIES
 # ==============================================================================
+
+class CatiaPartProxy:
+    def __init__(self, real_part_com, real_part=None):
+        self._com = real_part_com
+        self._part = real_part
+
+    @property
+    def Sketches(self):
+        try:
+            return self._com.MainBody.Sketches
+        except Exception:
+            return self._com.Sketches
+
+    @property
+    def sketches(self):
+        return self.Sketches
+
+    @property
+    def Origin(self):
+        return self._com.OriginElements
+
+    @property
+    def origin(self):
+        return self._com.OriginElements
+
+    @property
+    def OriginElements(self):
+        return self._com.OriginElements
+
+    @property
+    def PlaneXY(self):
+        return self._com.OriginElements.PlaneXY
+
+    @property
+    def PlaneYZ(self):
+        return self._com.OriginElements.PlaneYZ
+
+    @property
+    def PlaneZX(self):
+        return self._com.OriginElements.PlaneZX
+
+    @property
+    def Com(self):
+        return self
+
+    @property
+    def com(self):
+        return self
+
+    def Update(self):
+        try:
+            self._com.Update()
+        except Exception:
+            if self._part:
+                try: self._part.update()
+                except Exception: pass
+
+    def update(self):
+        self.Update()
+
+    def __getattr__(self, name):
+        if hasattr(self._com, "ShapeFactory") and hasattr(self._com.ShapeFactory, name):
+            return getattr(self._com.ShapeFactory, name)
+        if hasattr(self._com, "OriginElements") and hasattr(self._com.OriginElements, name):
+            return getattr(self._com.OriginElements, name)
+        if hasattr(self._com, "MainBody") and hasattr(self._com.MainBody, name):
+            return getattr(self._com.MainBody, name)
+        return getattr(self._com, name)
+
+
+class CatiaAppProxy:
+    def __init__(self, caa, part_proxy):
+        self._caa = caa
+        self._part = part_proxy
+
+    @property
+    def ActiveDocument(self):
+        return self
+
+    @property
+    def active_document(self):
+        return self
+
+    @property
+    def ActivePart(self):
+        return self._part
+
+    @property
+    def active_part(self):
+        return self._part
+
+    @property
+    def Part(self):
+        return self._part
+
+    @property
+    def part(self):
+        return self._part
+
+    def __getattr__(self, name):
+        return getattr(self._caa, name)
+
 
 def execute_python_catia_code(code_snippet: str):
     init_com()
@@ -731,9 +833,14 @@ def execute_python_catia_code(code_snippet: str):
         return False, err
     pc = part.com_object if hasattr(part, "com_object") else part
 
+    proxy_part = CatiaPartProxy(pc, part)
+    proxy_app = CatiaAppProxy(caa, proxy_part)
+
     exec_scope = {
-        "caa": caa, "catia": caa, "part": part, "part_com": pc,
-        "pc": pc, "pythoncom": pythoncom, "win32com": win32com,
+        "caa": proxy_app, "catia": proxy_app, "CATIA": proxy_app,
+        "part": proxy_part, "part_com": proxy_part, "pc": proxy_part,
+        "doc": proxy_app, "document": proxy_app,
+        "pythoncom": pythoncom, "win32com": win32com,
         "math": math, "time": time,
     }
     try:
@@ -789,18 +896,19 @@ def execute_python_catia_code(code_snippet: str):
 
 @tool
 def get_current_parameters() -> str:
-    """Reads numeric dimension parameters from active CATIA V5 Part."""
-    _, _, nps, err = get_part_and_parameters()
+    """Reads all numeric parameters from the active CATIA V5 part."""
+    init_com()
+    caa, part, nps, err = get_part_and_parameters()
     if err:
-        return f"CATIA: {err}"
+        return f"Error: {err}"
     if not nps:
         return "No numeric parameters found."
-    return "\n".join([f"• '{p['name']}' = {p['value']}" for p in nps])
+    return "\n".join([f"- {p['name']} = {p['value']}" for p in nps])
 
 @tool
-def update_catia_parameter(name: str, value: float) -> str:
-    """Updates a numeric parameter in CATIA V5."""
-    _, msg = apply_parameter_update(name, value)
+def update_catia_parameter(param_name: str, new_value: float) -> str:
+    """Modifies a numeric parameter and regenerates the 3D model."""
+    _, msg = apply_parameter_update(param_name, new_value)
     return msg
 
 @tool
@@ -811,7 +919,7 @@ def create_new_catia_document(doc_type: str = "Part") -> str:
 
 @tool
 def create_3d_pad_block(width: float, length: float, height: float) -> str:
-    """Creates a rectangular solid block in CATIA V5."""
+    """Creates a basic extruded block solid in CATIA V5."""
     _, msg = create_pad_block_in_catia(width, length, height)
     return msg
 
@@ -888,34 +996,56 @@ def instantiate_llm(provider, model_name, api_key, custom_base_url=""):
 def run_agent_with_live_status(llm, user_input, image_bytes=None, image_mime="image/png", status_container=None):
     cbs = [StreamlitAgentProgressHandler(status_container)] if status_container else []
 
-    system_prompt = """You are CATIA V5 AI Studio, an expert CAD engineer and pycatia/COM automation specialist.
+    system_prompt = """You are CATIA V5 AI Studio, an elite CAD engineer and Python COM automation expert.
 
-# BEHAVIOR & RULES
-1. If the user asks to build, create, modify, or split a 3D model:
-   - Generate clean, self-contained Python code inside a single ```python ... ``` block.
-   - The script will be automatically extracted and executed live against CATIA V5 in real time.
-2. If the user greets you, asks a question, or requests explanations:
-   - Respond directly and concisely in natural language.
+# CRITICAL INSTRUCTION
+Whenever the user asks you to build, create, or modify a 3D model, write self-contained Python code in a single ```python ... ``` block.
 
-# CATIA V5 EXECUTION ENVIRONMENT
-The execution environment pre-populates these objects:
-- `caa` / `catia`: CATIA Application instance
-- `part`: Active PartDocument.part
-- `part_com` / `pc`: Raw COM Part object
-- `shape_factory` / `sf`: `part_com.ShapeFactory` (AddNewPad, AddNewShaft, AddNewRemove, AddNewCircPattern, etc.)
-- `hybrid_shape_factory` / `hsf`: `part_com.HybridShapeFactory`
-- `main_body`: `part_com.MainBody`
-- `bodies`: `part_com.Bodies`
-- `xy_plane`, `yz_plane`, `zx_plane`: Origin reference planes
-- `math`, `time`: Standard Python modules
+# WORKING CATIA V5 CODE PATTERNS:
 
-# CAD SCRIPT TEMPLATES
-- 2D Sketch: `sk = main_body.Sketches.Add(xy_plane); f2 = sk.OpenEdition(); c = f2.CreateClosedCircle(0,0,30); sk.CloseEdition()`
-- Pad (Extrude): `part_com.InWorkObject = main_body; pad = shape_factory.AddNewPad(sk, 40.0)`
-- Cutout (Boolean Remove): `cb = part_com.Bodies.Add(); csk = cb.Sketches.Add(xy_plane); f2 = csk.OpenEdition(); f2.CreateClosedCircle(0,0,15); csk.CloseEdition(); part_com.InWorkObject = cb; shape_factory.AddNewPad(csk, 60.0); part_com.InWorkObject = main_body; shape_factory.AddNewRemove(cb)`
-- Revolve / Shaft: `sk = main_body.Sketches.Add(zx_plane); f2 = sk.OpenEdition(); sk.CenterLine = f2.CreateLine(0,0,0,100); ...; sk.CloseEdition(); shape_factory.AddNewShaft(sk)`
-- Circular Pattern: `shape_factory.AddNewCircPattern(pad, 6, 1, 60.0, 0.0, 1, 1, None, None, True, True, 0.0)`
-- ALWAYS call `part_com.Update()` at the end of the script."""
+## 1. Cylinder / Mug / Cup:
+```python
+# Outer Solid Body
+sk = main_body.Sketches.Add(xy_plane)
+f2 = sk.OpenEdition()
+f2.CreateClosedCircle(0.0, 0.0, 40.0)
+sk.CloseEdition()
+part_com.InWorkObject = main_body
+pad = shape_factory.AddNewPad(sk, 90.0)
+
+# Inner Hollow Cutout (Boolean Remove)
+cut_body = bodies.Add()
+cut_sk = cut_body.Sketches.Add(xy_plane)
+f2_c = cut_sk.OpenEdition()
+f2_c.CreateClosedCircle(0.0, 0.0, 35.0)
+cut_sk.CloseEdition()
+part_com.InWorkObject = cut_body
+shape_factory.AddNewPad(cut_sk, 85.0)
+part_com.InWorkObject = main_body
+shape_factory.AddNewRemove(cut_body)
+
+part_com.Update()
+```
+
+## 2. Revolve / Turned Shaft:
+```python
+sk = main_body.Sketches.Add(zx_plane)
+f2 = sk.OpenEdition()
+axis = f2.CreateLine(0, 0, 0, 100)
+sk.CenterLine = axis
+pts = [(15, 0), (35, 0), (35, 80), (15, 80)]
+p2d = [f2.CreatePoint(x, y) for x, y in pts]
+for i in range(len(pts)):
+    ln = f2.CreateLine(pts[i][0], pts[i][1], pts[(i+1)%len(pts)][0], pts[(i+1)%len(pts)][1])
+    ln.StartPoint = p2d[i]; ln.EndPoint = p2d[(i+1)%len(pts)]
+sk.CloseEdition()
+part_com.InWorkObject = main_body
+shaft = shape_factory.AddNewShaft(sk)
+shaft.FirstAngle = 360.0
+part_com.Update()
+```
+
+ALWAYS output your complete Python script in ```python ... ``` and end with `part_com.Update()`!"""
 
     ch = []
     for msg in st.session_state.get("messages", [])[:-1][-4:]:
