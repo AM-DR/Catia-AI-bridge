@@ -60,14 +60,39 @@ def compress_image_for_llm(image_bytes, max_dim=1024, quality=80):
 class StreamlitAgentProgressHandler(BaseCallbackHandler):
     def __init__(self, sc):
         self.sc = sc
+        self.thinking_container = None
+        self.thought_buffer = ""
+
     def on_llm_start(self, *a, **k):
-        self.sc.write("🧠 **Analyzing prompt…**")
+        self.thought_buffer = ""
+        self.thinking_container = self.sc.empty()
+        self.thinking_container.markdown("🧠 **Analyzing request & planning CATIA geometry…**")
+
+    def on_llm_new_token(self, token: str, **k):
+        if token:
+            self.thought_buffer += token
+            if self.thinking_container:
+                # Show live streaming preview (last 200 chars)
+                clean_prev = self.thought_buffer[-200:].replace("\n", " ")
+                self.thinking_container.markdown(f"💭 *Thinking:* `{clean_prev}`")
+
     def on_tool_start(self, ser, inp, **k):
-        self.sc.write(f"⚙️ **Tool:** `{ser.get('name','?')}` …")
+        name = ser.get('name', 'CAD Action')
+        self.sc.markdown(f"⚙️ **Executing CATIA Tool:** `{name}`")
+        if isinstance(inp, dict):
+            code = inp.get('code_snippet') or inp.get('input')
+            if code and len(str(code).strip()) > 10:
+                self.sc.markdown("##### 📝 Generated Python CAD Script:")
+                self.sc.code(str(code).strip(), language="python")
+        elif isinstance(inp, str) and len(inp.strip()) > 10 and "\n" in inp:
+            self.sc.markdown("##### 📝 Generated Python CAD Script:")
+            self.sc.code(inp.strip(), language="python")
+
     def on_tool_end(self, out, **k):
-        self.sc.write(f"✅ `{out}`")
+        self.sc.markdown(f"✅ **Result:** `{out}`")
+
     def on_tool_error(self, err, **k):
-        self.sc.write(f"❌ `{err}`")
+        self.sc.markdown(f"❌ **Error:** `{err}`")
 
 
 # ==============================================================================
@@ -681,24 +706,63 @@ def create_circular_pattern_in_catia(instance_count=6, circle_radius=45.0, hole_
 # ==============================================================================
 
 def execute_python_catia_code(code_snippet: str):
+    code_clean = code_snippet.strip()
+    if code_clean.startswith("```python"):
+        code_clean = code_clean[9:]
+    elif code_clean.startswith("```"):
+        code_clean = code_clean[3:]
+    if code_clean.endswith("```"):
+        code_clean = code_clean[:-3]
+    code_clean = code_clean.strip()
+
     if "last_executed_code" not in st.session_state:
         st.session_state["last_executed_code"] = ""
-    st.session_state["last_executed_code"] = code_snippet
+    st.session_state["last_executed_code"] = code_clean
 
     caa, part, err = ensure_active_part()
     if not caa:
         st.session_state["last_execution_status"] = (False, err)
         return False, err
     pc = part.com_object if hasattr(part, "com_object") else part
+
+    exec_scope = {
+        "caa": caa, "catia": caa, "part": part, "part_com": pc,
+        "pc": pc, "pythoncom": pythoncom, "win32com": win32com,
+        "math": math, "time": time,
+    }
     try:
-        exec(code_snippet, globals(), {"caa": caa, "part": part, "part_com": pc,
-                                        "catia": caa, "pythoncom": pythoncom, "win32com": win32com})
+        exec_scope["shape_factory"] = pc.ShapeFactory
+        exec_scope["sf"] = pc.ShapeFactory
+    except Exception: pass
+    try:
+        exec_scope["hybrid_shape_factory"] = pc.HybridShapeFactory
+        exec_scope["hsf"] = pc.HybridShapeFactory
+    except Exception: pass
+    try:
+        exec_scope["main_body"] = pc.MainBody
+    except Exception: pass
+    try:
+        exec_scope["bodies"] = pc.Bodies
+    except Exception: pass
+    try:
+        exec_scope["origin_elements"] = pc.OriginElements
+        exec_scope["xy_plane"] = pc.OriginElements.PlaneXY
+        exec_scope["yz_plane"] = pc.OriginElements.PlaneYZ
+        exec_scope["zx_plane"] = pc.OriginElements.PlaneZX
+    except Exception: pass
+    try:
+        exec_scope["parameters"] = pc.Parameters
+        exec_scope["relations"] = pc.Relations
+    except Exception: pass
+
+    try:
+        exec(code_clean, globals(), exec_scope)
         pc.Update()
         st.session_state["last_execution_status"] = (True, "Executed custom CATIA script successfully.")
-        return True, "Executed custom CATIA script."
+        return True, "Executed custom CATIA script successfully."
     except Exception as e:
         st.session_state["last_execution_status"] = (False, str(e))
-        return False, str(e)
+        return False, f"CATIA Python Error: {e}"
 
 
 # ==============================================================================
@@ -785,21 +849,21 @@ def instantiate_llm(provider, model_name, api_key, custom_base_url=""):
     if provider == "Local (llama.cpp / Local Server)":
         bu = custom_base_url.strip() or "http://localhost:8080/v1"
         return ChatOpenAI(model=m or "local-model", base_url=bu,
-                          api_key=api_key.strip() or "not-needed", temperature=0.0)
+                          api_key=api_key.strip() or "not-needed", temperature=0.0, streaming=True)
     if provider == "Local (Ollama)":
         if not ChatOllama:
             return None
         return ChatOllama(model=m or "llama3.2-vision", temperature=0.0)
     if provider == "OpenAI":
         if not api_key: return None
-        return ChatOpenAI(model=m or "gpt-4o", api_key=api_key, temperature=0.0)
+        return ChatOpenAI(model=m or "gpt-4o", api_key=api_key, temperature=0.0, streaming=True)
     if provider == "Anthropic":
         if not api_key: return None
-        return ChatAnthropic(model=m or "claude-3-5-sonnet-20240620", api_key=api_key, temperature=0.0)
+        return ChatAnthropic(model=m or "claude-3-5-sonnet-20240620", api_key=api_key, temperature=0.0, streaming=True)
     if provider == "OpenRouter":
         if not api_key: return None
         return ChatOpenAI(model=m or "google/gemini-2.5-flash", api_key=api_key,
-                          base_url="https://openrouter.ai/api/v1", temperature=0.0)
+                          base_url="https://openrouter.ai/api/v1", temperature=0.0, streaming=True)
     return None
 
 
@@ -809,98 +873,95 @@ def run_agent_with_live_status(llm, user_input, image_bytes=None, image_mime="im
         split_solid_part, create_revolved_shaft, create_circular_hole_pattern,
         build_automotive_wheel_rim, build_iron_man_mask, create_3d_pad_block, create_3d_cylinder
     ]
-    system_prompt = """You are an elite CATIA V5 R21 CAD engineer AI with expert knowledge of pycatia.
-Your primary capability is writing and executing Python scripts against the CATIA COM API to build any 3D geometry the user requests.
+    system_prompt = """You are an elite CATIA V5 R21 CAD engineer and Python COM automation expert.
+Your primary superpower is writing and executing Python scripts against the CATIA COM API (`pycatia` / `win32com`) to build ANY 3D geometry or mechanical part requested.
 
-# TOOL USAGE
-- ALWAYS use `run_custom_catia_python_script` to build 3D shapes.
-- Use `get_current_parameters` and `update_catia_parameter` when dealing with numeric parameters.
-- If asked to build a wheel rim, Iron Man mask, split a part with a clearance gap, or ANY other object, DO NOT complain that you lack a specific tool. YOU ARE A CODER. Write the `pycatia` python script to generate it from scratch using `run_custom_catia_python_script`!
+# EXECUTION ENVIRONMENT
+The environment you execute in via `run_custom_catia_python_script` already provides these variables:
+- `caa` / `catia`: CATIA application instance
+- `part`: Active PartDocument.part
+- `part_com` / `pc`: Raw COM Part object
+- `shape_factory` / `sf`: `part_com.ShapeFactory`
+- `main_body`: `part_com.MainBody`
+- `bodies`: `part_com.Bodies`
+- `xy_plane`: `part_com.OriginElements.PlaneXY`
+- `yz_plane`: `part_com.OriginElements.PlaneYZ`
+- `zx_plane`: `part_com.OriginElements.PlaneZX`
+- `math`, `time`: Python standard modules
 
-# PYCATIA / CATIA COM API CHEAT SHEET
-The environment you execute in via `run_custom_catia_python_script` already provides the following variables globally:
-- `caa`: The CATIA application instance (`catia()`)
-- `part`: The active `Part` object (`PartDocument.part`)
-- `part_com`: The raw COM object for the part (`part.com_object`)
+CRITICAL: ALWAYS call `part_com.Update()` at the end of your script!
 
-CRITICAL: You MUST ALWAYS call `part_com.Update()` at the end of your script to apply changes.
+# PYCATIA CAD CHEAT SHEET & BEST PRACTICES
 
-## 1. Document & Body Setup
+## 1. 2D Sketching
 ```python
-main_body = part_com.MainBody
-shape_factory = part_com.ShapeFactory
-xy_plane = part_com.OriginElements.PlaneXY
-zx_plane = part_com.OriginElements.PlaneZX
-yz_plane = part_com.OriginElements.PlaneYZ
+sk = main_body.Sketches.Add(xy_plane)
+f2 = sk.OpenEdition()
+# Point & Line:
+p1 = f2.CreatePoint(0.0, 0.0)
+p2 = f2.CreatePoint(100.0, 0.0)
+l1 = f2.CreateLine(0.0, 0.0, 100.0, 0.0)
+l1.StartPoint = p1; l1.EndPoint = p2
+# Closed Circle:
+c = f2.CreateClosedCircle(0.0, 0.0, 25.0) # x, y, radius
+# Spline:
+spline = f2.CreateSpline([p1, p2, f2.CreatePoint(50.0, 30.0)])
+sk.CloseEdition()
 ```
 
-## 2. Sketches & 2D Geometry
+## 2. 3D Features (Pads & Boolean Cutouts)
 ```python
-# Add sketch to a plane
-sketch = main_body.Sketches.Add(xy_plane)
-factory_2d = sketch.OpenEdition()
+# Pad (Extrude)
+part_com.InWorkObject = main_body
+pad = shape_factory.AddNewPad(sk, 40.0)
 
-# Create points
-p1 = factory_2d.CreatePoint(0.0, 0.0)
-p2 = factory_2d.CreatePoint(100.0, 50.0)
-
-# Create lines (requires setting StartPoint and EndPoint for closed profiles)
-line = factory_2d.CreateLine(0.0, 0.0, 100.0, 50.0)
-line.StartPoint = p1
-line.EndPoint = p2
-
-# Create circle
-circle = factory_2d.CreateClosedCircle(0.0, 0.0, 50.0) # x, y, radius
-
-# Finish sketching
-sketch.CloseEdition()
-```
-
-## 3. 3D Features (Pads & Boolean Operations)
-Instead of Pocket (which has direction issues in R21), ALWAYS use Boolean Remove for through-cuts.
-```python
-# Basic Pad (Extrude)
-pad = shape_factory.AddNewPad(sketch, 20.0) # sketch, depth
-
-# Boolean Remove (Bulletproof Cutout)
-# 1. Create a new body
+# Bulletproof Cutout (Boolean Remove)
 cut_body = part_com.Bodies.Add()
-# 2. Add sketch & pad to the new body
-cut_sketch = cut_body.Sketches.Add(xy_plane)
-f2 = cut_sketch.OpenEdition()
-f2.CreateClosedCircle(0, 0, 10)
-cut_sketch.CloseEdition()
+cut_sk = cut_body.Sketches.Add(xy_plane)
+f2 = cut_sk.OpenEdition()
+f2.CreateClosedCircle(0, 0, 15)
+cut_sk.CloseEdition()
 part_com.InWorkObject = cut_body
-shape_factory.AddNewPad(cut_sketch, 100.0)
-# 3. Boolean remove it from the main body
+shape_factory.AddNewPad(cut_sk, 100.0)
+part_com.Update()
 part_com.InWorkObject = main_body
 shape_factory.AddNewRemove(cut_body)
 ```
 
-## 4. Revolve / Shafts (Turned parts around Z-axis)
+## 3. Revolve / Turned Shafts & Grooves
 ```python
-sk = main_body.Sketches.Add(zx_plane)
-f2 = sk.OpenEdition()
-# Draw closed cross-section profile
-pts = [(20, 0), (40, 0), (40, 60), (20, 60)]
+sk_shaft = main_body.Sketches.Add(zx_plane)
+f2 = sk_shaft.OpenEdition()
+axis = f2.CreateLine(0, 0, 0, 100)
+sk_shaft.CenterLine = axis
+pts = [(10, 0), (30, 0), (30, 50), (10, 50)]
 p2d = [f2.CreatePoint(x, y) for x, y in pts]
 for i in range(len(pts)):
     ln = f2.CreateLine(pts[i][0], pts[i][1], pts[(i+1)%len(pts)][0], pts[(i+1)%len(pts)][1])
     ln.StartPoint = p2d[i]; ln.EndPoint = p2d[(i+1)%len(pts)]
-sk.CloseEdition()
+sk_shaft.CloseEdition()
 part_com.InWorkObject = main_body
-shaft = shape_factory.AddNewShaft(sk)
+shaft = shape_factory.AddNewShaft(sk_shaft)
 shaft.FirstAngle = 360.0
 ```
 
-## 5. Circular Patterns
+## 4. Circular & Rectangular Patterns
 ```python
+# Circular pattern around Z
 shape_factory.AddNewCircPattern(pad, 6, 1, 60.0, 0.0, 1, 1, None, None, True, True, 0.0)
 ```
 
-## 6. Part Splitting & Interlocking Jigsaw Clearance Cuts
-To split an existing solid with a 1mm gap, create a cutter body with a 1mm-thick slot or dovetail/puzzle wave contour, extrude it across the part, and subtract via `AddNewRemove`.
-"""
+## 5. Dress-up Features (Fillet, Chamfer, Shell)
+```python
+# Shell (Hollow out solid, e.g. coffee mug, cup, container)
+# shell = shape_factory.AddNewShell(face, 2.0, 0.0)
+```
+
+## 6. Part Splitting
+To split parts with a clearance gap (Planar, Jigsaw/Puzzle, Pyramid), generate the cutter body contour, extrude it across the part, and perform `shape_factory.AddNewRemove(cutter_body)`.
+
+ALWAYS write the complete, self-contained Python script and execute it via `run_custom_catia_python_script`!"""
+
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
         MessagesPlaceholder(variable_name="chat_history"),
@@ -908,25 +969,65 @@ To split an existing solid with a 1mm gap, create a cutter body with a 1mm-thick
         MessagesPlaceholder(variable_name="agent_scratchpad"),
     ])
     cbs = [StreamlitAgentProgressHandler(status_container)] if status_container else []
+
+    ch = []
+    for msg in st.session_state.get("messages", [])[:-1][-4:]:
+        c = msg.get("content", "")[:500]
+        if msg["role"] == "user": ch.append(HumanMessage(content=c))
+        elif msg["role"] == "assistant": ch.append(AIMessage(content=c))
+    if image_bytes:
+        cb, cm = compress_image_for_llm(image_bytes)
+        b64 = base64.b64encode(cb).decode()
+        inp = [{"type": "text", "text": user_input.strip() or "Build 3D CAD model from this drawing."},
+               {"type": "image_url", "image_url": {"url": f"data:{cm};base64,{b64}"}}]
+    else:
+        inp = user_input
+
     try:
         agent = create_tool_calling_agent(llm, tools, prompt)
-        ae = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True)
-        ch = []
-        for msg in st.session_state.get("messages", [])[:-1][-4:]:
-            c = msg.get("content", "")[:500]
-            if msg["role"] == "user": ch.append(HumanMessage(content=c))
-            elif msg["role"] == "assistant": ch.append(AIMessage(content=c))
-        if image_bytes:
-            cb, cm = compress_image_for_llm(image_bytes)
-            b64 = base64.b64encode(cb).decode()
-            inp = [{"type": "text", "text": user_input.strip() or "Build 3D from this drawing."},
-                   {"type": "image_url", "image_url": {"url": f"data:{cm};base64,{b64}"}}]
-        else:
-            inp = user_input
+        ae = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True, max_iterations=6)
         res = ae.invoke({"input": inp, "chat_history": ch}, config={"callbacks": cbs})
-        return res["output"]
+        out_text = res.get("output", "")
+        if "```python" in out_text or ("part_com" in out_text and "shape_factory" in out_text):
+            m = re.search(r'```(?:python)?\s*(.*?)\s*```', out_text, re.DOTALL)
+            code_cand = m.group(1) if m else out_text
+            if any(k in code_cand for k in ["AddNewPad", "AddNewShaft", "AddNewRemove", "part_com", "Sketches"]):
+                ok, exec_m = execute_python_catia_code(code_cand)
+                if ok:
+                    out_text += f"\n\n✅ *Executed custom CAD script in CATIA V5.*"
+                else:
+                    out_text += f"\n\n⚠️ *Execution notice:* {exec_m}"
+        return out_text
     except Exception as e:
-        return f"⚠️ Agent error: `{e}`"
+        # Direct generation fallback for reasoning or non-tool-calling models
+        try:
+            if status_container:
+                status_container.markdown("⚡ **Direct CAD Script Synthesis Mode…**")
+            direct_prompt = [
+                SystemMessage(content=system_prompt + "\n\nCRITICAL: Always output your self-contained executable Python CAD script inside a ```python ... ``` block."),
+            ]
+            for m in ch: direct_prompt.append(m)
+            if isinstance(inp, list):
+                direct_prompt.append(HumanMessage(content=inp))
+            else:
+                direct_prompt.append(HumanMessage(content=str(inp)))
+            
+            raw_res = llm.invoke(direct_prompt, config={"callbacks": cbs})
+            out_text = raw_res.content if hasattr(raw_res, "content") else str(raw_res)
+            m = re.search(r'```(?:python)?\s*(.*?)\s*```', out_text, re.DOTALL)
+            if m:
+                code_to_run = m.group(1).strip()
+                if status_container:
+                    status_container.markdown("##### 📝 Executing Generated Python Script:")
+                    status_container.code(code_to_run, language="python")
+                ok, exec_m = execute_python_catia_code(code_to_run)
+                if ok:
+                    out_text += f"\n\n✅ *Executed custom CATIA script successfully.*"
+                else:
+                    out_text += f"\n\n⚠️ *Execution notice:* {exec_m}"
+            return out_text
+        except Exception as e2:
+            return f"⚠️ Agent error: `{e2}`"
 
 
 # ==============================================================================
@@ -1810,10 +1911,28 @@ def main():
     inject_css(theme)
     st.sidebar.markdown("---")
     provider = st.sidebar.selectbox("🤖 LLM Engine",
-        ["Local (llama.cpp / Local Server)", "Local (Ollama)", "OpenAI", "Anthropic", "OpenRouter"])
+        ["OpenRouter", "OpenAI", "Anthropic", "Local (llama.cpp / Local Server)", "Local (Ollama)"])
     dm = {"Local (llama.cpp / Local Server)": "local-model", "Local (Ollama)": "llama3.2-vision",
           "OpenAI": "gpt-4o", "Anthropic": "claude-3-5-sonnet-20240620", "OpenRouter": "google/gemini-2.5-flash"}
-    model_name = st.sidebar.text_input("🧠 Model", value=dm[provider])
+    
+    if provider == "OpenRouter":
+        fast_models = [
+            "⚡ google/gemini-2.5-flash (Ultra Fast ~1s)",
+            "⚡ openai/gpt-4o-mini (Fast ~1.5s)",
+            "🧠 deepseek/deepseek-chat (Smart & Fast)",
+            "🎨 anthropic/claude-3.5-sonnet (High Precision)",
+            "🦙 meta-llama/llama-3.3-70b-instruct",
+            "✏️ Custom Model..."
+        ]
+        sel_preset = st.sidebar.selectbox("⚡ Fast Speed Presets", fast_models, index=0)
+        if "Custom" in sel_preset:
+            model_name = st.sidebar.text_input("🧠 Model ID", value="stealth/ox-alpha")
+        else:
+            model_name = sel_preset.split(" ")[1]
+            st.sidebar.caption(f"Active Model: `{model_name}`")
+    else:
+        model_name = st.sidebar.text_input("🧠 Model", value=dm[provider])
+
     custom_base_url = ""
     if provider == "Local (llama.cpp / Local Server)":
         custom_base_url = st.sidebar.text_input("🌐 Base URL", value="http://localhost:8080/v1")
