@@ -708,17 +708,213 @@ def create_circular_pattern_in_catia(instance_count=6, circle_radius=45.0, hole_
 # DYNAMIC PYTHON CODE EXECUTION & CATIA PROXIES
 # ==============================================================================
 
+class Catia2DFactoryProxy:
+    def __init__(self, real_f2):
+        self._f2 = real_f2
+
+    def CreateCircle(self, *args):
+        if len(args) == 3:
+            return self._f2.CreateClosedCircle(float(args[0]), float(args[1]), float(args[2]))
+        return self._f2.CreateCircle(*args)
+
+    def create_circle(self, *args):
+        return self.CreateCircle(*args)
+
+    def CreateClosedCircle(self, x, y, r):
+        return self._f2.CreateClosedCircle(float(x), float(y), float(r))
+
+    def create_closed_circle(self, x, y, r):
+        return self._f2.CreateClosedCircle(float(x), float(y), float(r))
+
+    def CreatePoint(self, x, y):
+        return self._f2.CreatePoint(float(x), float(y))
+
+    def create_point(self, x, y):
+        return self.CreatePoint(x, y)
+
+    def CreateLine(self, x1, y1, x2, y2):
+        return self._f2.CreateLine(float(x1), float(y1), float(x2), float(y2))
+
+    def create_line(self, x1, y1, x2, y2):
+        return self.CreateLine(x1, y1, x2, y2)
+
+    def __getattr__(self, name):
+        return getattr(self._f2, name)
+
+
+class CatiaSketchProxy:
+    def __init__(self, real_sketch):
+        self._sk = real_sketch
+
+    def OpenEdition(self):
+        return Catia2DFactoryProxy(self._sk.OpenEdition())
+
+    def open_edition(self):
+        return self.OpenEdition()
+
+    def CloseEdition(self):
+        return self._sk.CloseEdition()
+
+    def close_edition(self):
+        return self._sk.CloseEdition()
+
+    def __getattr__(self, name):
+        return getattr(self._sk, name)
+
+
+class CatiaSketchesProxy:
+    def __init__(self, real_sketches):
+        self._sks = real_sketches
+
+    def Add(self, plane):
+        real_plane = plane._com if hasattr(plane, "_com") else plane
+        return CatiaSketchProxy(self._sks.Add(real_plane))
+
+    def add(self, plane):
+        return self.Add(plane)
+
+    def __getattr__(self, name):
+        return getattr(self._sks, name)
+
+
+class CatiaBodyProxy:
+    def __init__(self, real_body, part_com):
+        self._com = real_body
+        self._pc = part_com
+
+    @property
+    def Sketches(self):
+        return CatiaSketchesProxy(self._com.Sketches)
+
+    @property
+    def sketches(self):
+        return self.Sketches
+
+    def __getattr__(self, name):
+        return getattr(self._com, name)
+
+
+class CatiaBodiesProxy:
+    def __init__(self, real_bodies, part_com):
+        self._bodies = real_bodies
+        self._pc = part_com
+
+    def Add(self):
+        b = self._bodies.Add()
+        return CatiaBodyProxy(b, self._pc)
+
+    def add(self):
+        return self.Add()
+
+    def Item(self, idx):
+        b = self._bodies.Item(idx)
+        return CatiaBodyProxy(b, self._pc)
+
+    def item(self, idx):
+        return self.Item(idx)
+
+    def __getattr__(self, name):
+        return getattr(self._bodies, name)
+
+
+class CatiaShapeFactoryProxy:
+    def __init__(self, real_sf, part_com, main_body):
+        self._sf = real_sf
+        self._pc = part_com
+        self._mb = main_body
+
+    def AddNewPad(self, sketch, depth):
+        real_sk = sketch._sk if hasattr(sketch, "_sk") else sketch
+        return self._sf.AddNewPad(real_sk, float(depth))
+
+    def add_new_pad(self, sketch, depth):
+        return self.AddNewPad(sketch, depth)
+
+    def AddNewRemove(self, body):
+        real_b = body._com if hasattr(body, "_com") else body
+        try:
+            self._pc.UpdateObject(real_b)
+        except Exception:
+            try: self._pc.Update()
+            except Exception: pass
+        try:
+            self._pc.InWorkObject = self._mb
+        except Exception: pass
+        return self._sf.AddNewRemove(real_b)
+
+    def add_new_remove(self, body):
+        return self.AddNewRemove(body)
+
+    def AddNewAdd(self, body):
+        real_b = body._com if hasattr(body, "_com") else body
+        try:
+            self._pc.UpdateObject(real_b)
+        except Exception:
+            try: self._pc.Update()
+            except Exception: pass
+        try:
+            self._pc.InWorkObject = self._mb
+        except Exception: pass
+        return self._sf.AddNewAdd(real_b)
+
+    def add_new_add(self, body):
+        return self.AddNewAdd(body)
+
+    def AddNewShaft(self, sketch):
+        real_sk = sketch._sk if hasattr(sketch, "_sk") else sketch
+        return self._sf.AddNewShaft(real_sk)
+
+    def add_new_shaft(self, sketch):
+        return self.AddNewShaft(sketch)
+
+    def AddNewCircPattern(self, *args, **kwargs):
+        return self._sf.AddNewCircPattern(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._sf, name)
+
+
 class CatiaPartProxy:
     def __init__(self, real_part_com, real_part=None):
         self._com = real_part_com
         self._part = real_part
+        self._sf_proxy = None
+        self._bodies_proxy = None
+
+    @property
+    def ShapeFactory(self):
+        if not self._sf_proxy:
+            self._sf_proxy = CatiaShapeFactoryProxy(self._com.ShapeFactory, self._com, self._com.MainBody)
+        return self._sf_proxy
+
+    @property
+    def shape_factory(self):
+        return self.ShapeFactory
+
+    @property
+    def Bodies(self):
+        if not self._bodies_proxy:
+            self._bodies_proxy = CatiaBodiesProxy(self._com.Bodies, self._com)
+        return self._bodies_proxy
+
+    @property
+    def bodies(self):
+        return self.Bodies
+
+    @property
+    def MainBody(self):
+        return CatiaBodyProxy(self._com.MainBody, self._com)
+
+    @property
+    def main_body(self):
+        return self.MainBody
 
     @property
     def Sketches(self):
         try:
-            return self._com.MainBody.Sketches
+            return CatiaSketchesProxy(self._com.MainBody.Sketches)
         except Exception:
-            return self._com.Sketches
+            return CatiaSketchesProxy(self._com.Sketches)
 
     @property
     def sketches(self):
@@ -749,6 +945,10 @@ class CatiaPartProxy:
         return self._com.OriginElements.PlaneZX
 
     @property
+    def PlaneXZ(self):
+        return self._com.OriginElements.PlaneZX
+
+    @property
     def Com(self):
         return self
 
@@ -768,12 +968,10 @@ class CatiaPartProxy:
         self.Update()
 
     def __getattr__(self, name):
-        if hasattr(self._com, "ShapeFactory") and hasattr(self._com.ShapeFactory, name):
-            return getattr(self._com.ShapeFactory, name)
+        if hasattr(self.ShapeFactory, name):
+            return getattr(self.ShapeFactory, name)
         if hasattr(self._com, "OriginElements") and hasattr(self._com.OriginElements, name):
             return getattr(self._com.OriginElements, name)
-        if hasattr(self._com, "MainBody") and hasattr(self._com.MainBody, name):
-            return getattr(self._com.MainBody, name)
         return getattr(self._com, name)
 
 
@@ -840,6 +1038,13 @@ def execute_python_catia_code(code_snippet: str):
         "caa": proxy_app, "catia": proxy_app, "CATIA": proxy_app,
         "part": proxy_part, "part_com": proxy_part, "pc": proxy_part,
         "doc": proxy_app, "document": proxy_app,
+        "shape_factory": proxy_part.ShapeFactory, "sf": proxy_part.ShapeFactory,
+        "bodies": proxy_part.Bodies, "main_body": proxy_part.MainBody,
+        "xy_plane": proxy_part.PlaneXY, "plane_xy": proxy_part.PlaneXY,
+        "yz_plane": proxy_part.PlaneYZ, "plane_yz": proxy_part.PlaneYZ,
+        "zx_plane": proxy_part.PlaneZX, "plane_zx": proxy_part.PlaneZX,
+        "xz_plane": proxy_part.PlaneZX, "plane_xz": proxy_part.PlaneZX,
+        "origin_elements": proxy_part.OriginElements,
         "pythoncom": pythoncom, "win32com": win32com,
         "math": math, "time": time,
     }
