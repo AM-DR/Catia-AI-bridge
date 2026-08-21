@@ -1416,20 +1416,30 @@ def run_agent_with_live_status(llm, user_input, image_bytes=None, image_mime="im
 1. GREETINGS & QUESTIONS: If the user says hello, asks who you are, or asks a general question, reply warmly and concisely in 1-2 friendly sentences. NEVER generate python code or CAD commands for greetings.
 2. 3D CAD REQUESTS: ONLY when the user explicitly asks to build, create, or modify a 3D model (e.g. "build a coffee mug", "create a cylinder", "design a shaft"):
    - Briefly describe what you designed in 1-2 bullet points.
-   - For Coffee Mugs, Cups, & Containers, use this exact 1-shot method:
-     1. Outer Body: `pad = shape_factory.add_new_pad(sk_outer, 90.0)` (Pad on plane_xy)
-     2. Top Plane & Pocket (Hollows from top downwards):
-        `top_plane = hybrid_shape_factory.add_new_plane_offset(plane_xy, 90.0, False)`
-        `part.update()`
-        `sk_inner = main_body.sketches.add(top_plane)`
-        `pocket = shape_factory.add_new_pocket(sk_inner, 80.0)` (Cuts 80mm downwards into the mug!)
-     3. Hollow Loop Handle (Concentric circles on plane_zx):
-        `sk_h = main_body.sketches.add(plane_zx)`
-        `f2 = sk_h.open_edition(); f2.create_closed_circle(45.0, 45.0, 20.0); f2.create_closed_circle(45.0, 45.0, 12.0); sk_h.close_edition()`
-        `pad_h = shape_factory.add_new_pad(sk_h, 15.0)`
+   - For Coffee Mugs, Cups, & Hollow Cylinders, use Revolve (Shaft) on plane_zx:
+     1. Hollow Body via Shaft:
+        sk = main_body.sketches.add(plane_zx)
+        f2 = sk.open_edition()
+        sk.center_line = f2.create_line(0.0, 0.0, 0.0, 100.0)
+        # Closed U-shaped profile with 5mm walls and 8mm base
+        pts = [(0.0, 0.0), (40.0, 0.0), (40.0, 90.0), (35.0, 90.0), (35.0, 8.0), (0.0, 8.0)]
+        p2d = [f2.create_point(x, z) for x, z in pts]
+        for i in range(len(pts)):
+            ln = f2.create_line(pts[i][0], pts[i][1], pts[(i+1)%len(pts)][0], pts[(i+1)%len(pts)][1])
+            ln.start_point = p2d[i]; ln.end_point = p2d[(i+1)%len(pts)]
+        sk.close_edition()
+        shaft = shape_factory.add_new_shaft(sk)
+        shaft.first_angle = 360.0
+     2. Hollow Loop Handle (on plane_yz):
+        sk_h = main_body.sketches.add(plane_yz)
+        f2_h = sk_h.open_edition()
+        f2_h.create_closed_circle(42.0, 45.0, 20.0)
+        f2_h.create_closed_circle(42.0, 45.0, 13.0)
+        sk_h.close_edition()
+        pad_h = shape_factory.add_new_pad(sk_h, 15.0)
    - Put executable Python code inside a ```python ... ``` block at the end and conclude with `part.update()`.
 
-Pre-injected variables: `caa`, `part`, `part_com`, `main_body`, `shape_factory`, `hybrid_shape_factory`, `plane_xy`, `plane_yz`, `plane_zx`.
+Pre-injected variables: `caa`, `part`, `part_com`, `main_body`, `shape_factory`, `plane_xy`, `plane_yz`, `plane_zx`.
 """
 
     ch = []
