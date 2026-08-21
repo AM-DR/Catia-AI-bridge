@@ -745,13 +745,15 @@ class Catia2DFactoryProxy:
 class CatiaSketchProxy:
     def __init__(self, real_sketch):
         self._sk = real_sketch
+        self._f2 = None
 
     @property
     def com_object(self):
         return self._sk
 
     def OpenEdition(self):
-        return Catia2DFactoryProxy(self._sk.OpenEdition())
+        self._f2 = Catia2DFactoryProxy(self._sk.OpenEdition())
+        return self._f2
 
     def open_edition(self):
         return self.OpenEdition()
@@ -762,8 +764,47 @@ class CatiaSketchProxy:
     def close_edition(self):
         return self._sk.CloseEdition()
 
+    @property
+    def Factory2D(self):
+        if not self._f2:
+            self.OpenEdition()
+        return self._f2
+
+    @property
+    def factory_2d(self):
+        return self.Factory2D
+
+    def CreateClosedCircle(self, *args, **kwargs):
+        return self.Factory2D.CreateClosedCircle(*args, **kwargs)
+
+    def create_closed_circle(self, *args, **kwargs):
+        return self.Factory2D.CreateClosedCircle(*args, **kwargs)
+
+    def CreateLine(self, *args, **kwargs):
+        return self.Factory2D.CreateLine(*args, **kwargs)
+
+    def create_line(self, *args, **kwargs):
+        return self.Factory2D.CreateLine(*args, **kwargs)
+
+    def CreatePoint(self, *args, **kwargs):
+        return self.Factory2D.CreatePoint(*args, **kwargs)
+
+    def create_point(self, *args, **kwargs):
+        return self.Factory2D.CreatePoint(*args, **kwargs)
+
     def __getattr__(self, name):
-        return getattr(self._sk, name)
+        if hasattr(self._sk, name):
+            return getattr(self._sk, name)
+        pascal_name = "".join(w.capitalize() for w in name.split("_"))
+        if hasattr(self._sk, pascal_name):
+            return getattr(self._sk, pascal_name)
+        if self._f2 and hasattr(self._f2, name):
+            return getattr(self._f2, name)
+        if self._f2 and hasattr(self._f2, pascal_name):
+            return getattr(self._f2, pascal_name)
+        def _dummy_method(*args, **kwargs):
+            return None
+        return _dummy_method
 
 
 class CatiaSketchesProxy:
@@ -1230,6 +1271,28 @@ class MockConstants:
         return name
 
 
+class LazyF2Proxy:
+    def __init__(self, part_proxy):
+        self._part = part_proxy
+        self._active_f2 = None
+
+    def _get_f2(self):
+        if self._active_f2:
+            return self._active_f2
+        try:
+            sk = self._part.Sketches.Item(self._part.Sketches.Count)
+            self._active_f2 = sk.OpenEdition()
+            return self._active_f2
+        except Exception:
+            sk = self._part.Sketches.Add(self._part.PlaneXY)
+            self._active_f2 = sk.OpenEdition()
+            return self._active_f2
+
+    def __getattr__(self, name):
+        f = self._get_f2()
+        return getattr(f, name)
+
+
 def execute_python_catia_code(code_snippet: str):
     init_com()
     code_clean = code_snippet.strip()
@@ -1261,6 +1324,8 @@ def execute_python_catia_code(code_snippet: str):
     except Exception:
         pass
 
+    lazy_f2 = LazyF2Proxy(proxy_part)
+
     exec_scope = {
         "caa": proxy_app, "catia": proxy_app, "CATIA": proxy_app,
         "part": proxy_part, "part_com": proxy_part, "pc": proxy_part,
@@ -1273,6 +1338,7 @@ def execute_python_catia_code(code_snippet: str):
         "zx_plane": proxy_part.PlaneZX, "plane_zx": proxy_part.PlaneZX,
         "xz_plane": proxy_part.PlaneZX, "plane_xz": proxy_part.PlaneZX,
         "origin_elements": proxy_part.OriginElements,
+        "f2": lazy_f2, "f2_h": lazy_f2, "f2d": lazy_f2, "factory_2d": lazy_f2, "factory2d": lazy_f2,
         "constants": MockConstants(),
         "pythoncom": pythoncom, "win32com": win32com,
         "math": math, "time": time,
