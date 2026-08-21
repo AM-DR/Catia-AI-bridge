@@ -763,14 +763,37 @@ class CatiaSketchProxy:
 
 
 class CatiaSketchesProxy:
-    def __init__(self, real_sketches):
+    def __init__(self, real_sketches, part_proxy=None):
         self._sks = real_sketches
+        self._part = part_proxy
 
-    def Add(self, plane):
-        real_plane = plane._com if hasattr(plane, "_com") else plane
-        return CatiaSketchProxy(self._sks.Add(real_plane))
+    def Add(self, plane=None):
+        if plane is None:
+            real_plane = self._part.PlaneXY if self._part else None
+        elif hasattr(plane, "_com"):
+            real_plane = plane._com
+        elif isinstance(plane, str):
+            s = plane.lower()
+            if "yz" in s and self._part: real_plane = self._part.PlaneYZ
+            elif ("zx" in s or "xz" in s) and self._part: real_plane = self._part.PlaneZX
+            elif self._part: real_plane = self._part.PlaneXY
+            else: real_plane = plane
+        else:
+            real_plane = plane
 
-    def add(self, plane):
+        if hasattr(real_plane, "_com"):
+            real_plane = real_plane._com
+
+        try:
+            return CatiaSketchProxy(self._sks.Add(real_plane))
+        except Exception:
+            if self._part:
+                p = self._part.PlaneXY
+                rp = p._com if hasattr(p, "_com") else p
+                return CatiaSketchProxy(self._sks.Add(rp))
+            raise
+
+    def add(self, plane=None):
         return self.Add(plane)
 
     def __getattr__(self, name):
@@ -778,13 +801,14 @@ class CatiaSketchesProxy:
 
 
 class CatiaBodyProxy:
-    def __init__(self, real_body, part_com):
+    def __init__(self, real_body, part_com, part_proxy=None):
         self._com = real_body
         self._pc = part_com
+        self._part = part_proxy
 
     @property
     def Sketches(self):
-        return CatiaSketchesProxy(self._com.Sketches)
+        return CatiaSketchesProxy(self._com.Sketches, self._part)
 
     @property
     def sketches(self):
@@ -795,20 +819,21 @@ class CatiaBodyProxy:
 
 
 class CatiaBodiesProxy:
-    def __init__(self, real_bodies, part_com):
+    def __init__(self, real_bodies, part_com, part_proxy=None):
         self._bodies = real_bodies
         self._pc = part_com
+        self._part = part_proxy
 
     def Add(self):
         b = self._bodies.Add()
-        return CatiaBodyProxy(b, self._pc)
+        return CatiaBodyProxy(b, self._pc, self._part)
 
     def add(self):
         return self.Add()
 
     def Item(self, idx):
         b = self._bodies.Item(idx)
-        return CatiaBodyProxy(b, self._pc)
+        return CatiaBodyProxy(b, self._pc, self._part)
 
     def item(self, idx):
         return self.Item(idx)
@@ -922,7 +947,7 @@ class CatiaPartProxy:
     @property
     def Bodies(self):
         if not self._bodies_proxy:
-            self._bodies_proxy = CatiaBodiesProxy(self._com.Bodies, self._com)
+            self._bodies_proxy = CatiaBodiesProxy(self._com.Bodies, self._com, self)
         return self._bodies_proxy
 
     @property
@@ -931,18 +956,70 @@ class CatiaPartProxy:
 
     @property
     def MainBody(self):
-        return CatiaBodyProxy(self._com.MainBody, self._com)
+        return CatiaBodyProxy(self._com.MainBody, self._com, self)
 
     @property
     def main_body(self):
         return self.MainBody
 
+    def GetPartBody(self):
+        return self.MainBody
+
+    def get_part_body(self):
+        return self.MainBody
+
+    def GetMainBody(self):
+        return self.MainBody
+
+    def get_main_body(self):
+        return self.MainBody
+
+    def GetShapeFactory(self):
+        return self.ShapeFactory
+
+    def get_shape_factory(self):
+        return self.ShapeFactory
+
+    def GetBodies(self):
+        return self.Bodies
+
+    def get_bodies(self):
+        return self.Bodies
+
+    def GetSketches(self):
+        return self.Sketches
+
+    def get_sketches(self):
+        return self.Sketches
+
+    def GetOriginElements(self):
+        return self.OriginElements
+
+    def get_origin_elements(self):
+        return self.OriginElements
+
+    def Plane(self, *args, **kwargs):
+        if args:
+            s = str(args[0]).lower()
+            if "yz" in s: return self.PlaneYZ
+            if "zx" in s or "xz" in s: return self.PlaneZX
+        return self.PlaneXY
+
+    def plane(self, *args, **kwargs):
+        return self.Plane(*args, **kwargs)
+
+    def GetPlane(self, *args, **kwargs):
+        return self.Plane(*args, **kwargs)
+
+    def get_plane(self, *args, **kwargs):
+        return self.Plane(*args, **kwargs)
+
     @property
     def Sketches(self):
         try:
-            return CatiaSketchesProxy(self._com.MainBody.Sketches)
+            return CatiaSketchesProxy(self._com.MainBody.Sketches, self)
         except Exception:
-            return CatiaSketchesProxy(self._com.Sketches)
+            return CatiaSketchesProxy(self._com.Sketches, self)
 
     @property
     def sketches(self):
@@ -1036,6 +1113,15 @@ class CatiaAppProxy:
         return getattr(self._caa, name)
 
 
+class MockConstants:
+    ppPlaneXY = "PlaneXY"
+    ppPlaneYZ = "PlaneYZ"
+    ppPlaneZX = "PlaneZX"
+    ppPlaneXZ = "PlaneZX"
+    def __getattr__(self, name):
+        return name
+
+
 def execute_python_catia_code(code_snippet: str):
     init_com()
     code_clean = code_snippet.strip()
@@ -1062,6 +1148,11 @@ def execute_python_catia_code(code_snippet: str):
     proxy_part = CatiaPartProxy(pc, part)
     proxy_app = CatiaAppProxy(caa, proxy_part)
 
+    try:
+        win32com.client.constants = MockConstants()
+    except Exception:
+        pass
+
     exec_scope = {
         "caa": proxy_app, "catia": proxy_app, "CATIA": proxy_app,
         "part": proxy_part, "part_com": proxy_part, "pc": proxy_part,
@@ -1073,6 +1164,7 @@ def execute_python_catia_code(code_snippet: str):
         "zx_plane": proxy_part.PlaneZX, "plane_zx": proxy_part.PlaneZX,
         "xz_plane": proxy_part.PlaneZX, "plane_xz": proxy_part.PlaneZX,
         "origin_elements": proxy_part.OriginElements,
+        "constants": MockConstants(),
         "pythoncom": pythoncom, "win32com": win32com,
         "math": math, "time": time,
     }
@@ -1309,14 +1401,22 @@ ALWAYS output your complete Python script in ```python ... ``` and end with `par
         m = re.search(r'```(?:python|py)?\s*(.*?)\s*```', out_text, re.DOTALL | re.IGNORECASE)
         if m:
             code_to_run = m.group(1).strip()
-            if status_container:
-                status_container.markdown("##### 📝 Live Python CAD Execution:")
-                status_container.code(code_to_run, language="python")
             ok, exec_m = execute_python_catia_code(code_to_run)
+            
+            # Cleanly strip code blocks so the user doesn't see raw code
+            clean_display_text = re.sub(r'```(?:python|py)?\s*.*?\s*```', '', out_text, flags=re.DOTALL | re.IGNORECASE).strip()
+            
             if ok:
-                out_text += f"\n\n✅ *Executed custom CAD script in CATIA V5.*"
+                if not clean_display_text:
+                    clean_display_text = "✨ **Created and updated 3D CAD model in CATIA V5 in real time.**"
+                else:
+                    clean_display_text += "\n\n✅ *Real-time modification applied in CATIA V5.*"
             else:
-                out_text += f"\n\n⚠️ *Execution notice:* {exec_m}"
+                if not clean_display_text:
+                    clean_display_text = f"⚠️ *Execution error:* `{exec_m}`"
+                else:
+                    clean_display_text += f"\n\n⚠️ *Execution notice:* `{exec_m}`"
+            return clean_display_text
         return out_text
     except Exception as e:
         return f"⚠️ Generation error: `{e}`"
