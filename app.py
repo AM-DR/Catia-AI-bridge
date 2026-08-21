@@ -1339,6 +1339,7 @@ def run_agent_with_live_status(llm, user_input, image_bytes=None, image_mime="im
 1. GREETINGS & QUESTIONS: If the user says hello, asks who you are, or asks a general question, reply warmly and concisely in 1-2 friendly sentences. NEVER generate python code or CAD commands for greetings.
 2. 3D CAD REQUESTS: ONLY when the user explicitly asks to build, create, or modify a 3D model (e.g. "build a coffee mug", "create a cylinder", "design a shaft"):
    - Briefly describe what you designed in 1-2 bullet points.
+   - For hollow vessels (mugs, cups, pipes, boxes), create the outer solid (`add_new_pad`) AND the inner hollow cavity (`add_new_pocket`) with wall thickness.
    - Put executable Python code inside a ```python ... ``` block at the end using these pycatia/COM objects:
      `sk = main_body.sketches.add(plane_xy)` -> `f2 = sk.open_edition()` -> `f2.create_closed_circle(x, y, r)` / `f2.create_line(...)` -> `sk.close_edition()`
      `pad = shape_factory.add_new_pad(sk, height)`
