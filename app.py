@@ -874,166 +874,75 @@ def instantiate_llm(provider, model_name, api_key, custom_base_url=""):
 
 
 def run_agent_with_live_status(llm, user_input, image_bytes=None, image_mime="image/png", status_container=None):
-    tools = [
-        get_current_parameters, update_catia_parameter, run_custom_catia_python_script,
-        split_solid_part, create_revolved_shaft, create_circular_hole_pattern,
-        build_automotive_wheel_rim, build_iron_man_mask, create_3d_pad_block, create_3d_cylinder
-    ]
-    system_prompt = """You are an elite CATIA V5 R21 CAD engineer and Python COM automation expert.
-Your primary superpower is writing and executing Python scripts against the CATIA COM API (`pycatia` / `win32com`) to build ANY 3D geometry or mechanical part requested.
+    cbs = [StreamlitAgentProgressHandler(status_container)] if status_container else []
 
-# EXECUTION ENVIRONMENT
-The environment you execute in via `run_custom_catia_python_script` already provides these variables:
-- `caa` / `catia`: CATIA application instance
+    system_prompt = """You are CATIA V5 AI Studio, an expert CAD engineer and pycatia/COM automation specialist.
+
+# BEHAVIOR & RULES
+1. If the user asks to build, create, modify, or split a 3D model:
+   - Generate clean, self-contained Python code inside a single ```python ... ``` block.
+   - The script will be automatically extracted and executed live against CATIA V5 in real time.
+2. If the user greets you, asks a question, or requests explanations:
+   - Respond directly and concisely in natural language.
+
+# CATIA V5 EXECUTION ENVIRONMENT
+The execution environment pre-populates these objects:
+- `caa` / `catia`: CATIA Application instance
 - `part`: Active PartDocument.part
 - `part_com` / `pc`: Raw COM Part object
-- `shape_factory` / `sf`: `part_com.ShapeFactory`
+- `shape_factory` / `sf`: `part_com.ShapeFactory` (AddNewPad, AddNewShaft, AddNewRemove, AddNewCircPattern, etc.)
+- `hybrid_shape_factory` / `hsf`: `part_com.HybridShapeFactory`
 - `main_body`: `part_com.MainBody`
 - `bodies`: `part_com.Bodies`
-- `xy_plane`: `part_com.OriginElements.PlaneXY`
-- `yz_plane`: `part_com.OriginElements.PlaneYZ`
-- `zx_plane`: `part_com.OriginElements.PlaneZX`
-- `math`, `time`: Python standard modules
+- `xy_plane`, `yz_plane`, `zx_plane`: Origin reference planes
+- `math`, `time`: Standard Python modules
 
-CRITICAL: ALWAYS call `part_com.Update()` at the end of your script!
-
-# PYCATIA CAD CHEAT SHEET & BEST PRACTICES
-
-## 1. 2D Sketching
-```python
-sk = main_body.Sketches.Add(xy_plane)
-f2 = sk.OpenEdition()
-# Point & Line:
-p1 = f2.CreatePoint(0.0, 0.0)
-p2 = f2.CreatePoint(100.0, 0.0)
-l1 = f2.CreateLine(0.0, 0.0, 100.0, 0.0)
-l1.StartPoint = p1; l1.EndPoint = p2
-# Closed Circle:
-c = f2.CreateClosedCircle(0.0, 0.0, 25.0) # x, y, radius
-# Spline:
-spline = f2.CreateSpline([p1, p2, f2.CreatePoint(50.0, 30.0)])
-sk.CloseEdition()
-```
-
-## 2. 3D Features (Pads & Boolean Cutouts)
-```python
-# Pad (Extrude)
-part_com.InWorkObject = main_body
-pad = shape_factory.AddNewPad(sk, 40.0)
-
-# Bulletproof Cutout (Boolean Remove)
-cut_body = part_com.Bodies.Add()
-cut_sk = cut_body.Sketches.Add(xy_plane)
-f2 = cut_sk.OpenEdition()
-f2.CreateClosedCircle(0, 0, 15)
-cut_sk.CloseEdition()
-part_com.InWorkObject = cut_body
-shape_factory.AddNewPad(cut_sk, 100.0)
-part_com.Update()
-part_com.InWorkObject = main_body
-shape_factory.AddNewRemove(cut_body)
-```
-
-## 3. Revolve / Turned Shafts & Grooves
-```python
-sk_shaft = main_body.Sketches.Add(zx_plane)
-f2 = sk_shaft.OpenEdition()
-axis = f2.CreateLine(0, 0, 0, 100)
-sk_shaft.CenterLine = axis
-pts = [(10, 0), (30, 0), (30, 50), (10, 50)]
-p2d = [f2.CreatePoint(x, y) for x, y in pts]
-for i in range(len(pts)):
-    ln = f2.CreateLine(pts[i][0], pts[i][1], pts[(i+1)%len(pts)][0], pts[(i+1)%len(pts)][1])
-    ln.StartPoint = p2d[i]; ln.EndPoint = p2d[(i+1)%len(pts)]
-sk_shaft.CloseEdition()
-part_com.InWorkObject = main_body
-shaft = shape_factory.AddNewShaft(sk_shaft)
-shaft.FirstAngle = 360.0
-```
-
-## 4. Circular & Rectangular Patterns
-```python
-# Circular pattern around Z
-shape_factory.AddNewCircPattern(pad, 6, 1, 60.0, 0.0, 1, 1, None, None, True, True, 0.0)
-```
-
-## 5. Dress-up Features (Fillet, Chamfer, Shell)
-```python
-# Shell (Hollow out solid, e.g. coffee mug, cup, container)
-# shell = shape_factory.AddNewShell(face, 2.0, 0.0)
-```
-
-## 6. Part Splitting
-To split parts with a clearance gap (Planar, Jigsaw/Puzzle, Pyramid), generate the cutter body contour, extrude it across the part, and perform `shape_factory.AddNewRemove(cutter_body)`.
-
-ALWAYS write the complete, self-contained Python script and execute it via `run_custom_catia_python_script`!"""
-
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{input}"),
-        MessagesPlaceholder(variable_name="agent_scratchpad"),
-    ])
-    cbs = [StreamlitAgentProgressHandler(status_container)] if status_container else []
+# CAD SCRIPT TEMPLATES
+- 2D Sketch: `sk = main_body.Sketches.Add(xy_plane); f2 = sk.OpenEdition(); c = f2.CreateClosedCircle(0,0,30); sk.CloseEdition()`
+- Pad (Extrude): `part_com.InWorkObject = main_body; pad = shape_factory.AddNewPad(sk, 40.0)`
+- Cutout (Boolean Remove): `cb = part_com.Bodies.Add(); csk = cb.Sketches.Add(xy_plane); f2 = csk.OpenEdition(); f2.CreateClosedCircle(0,0,15); csk.CloseEdition(); part_com.InWorkObject = cb; shape_factory.AddNewPad(csk, 60.0); part_com.InWorkObject = main_body; shape_factory.AddNewRemove(cb)`
+- Revolve / Shaft: `sk = main_body.Sketches.Add(zx_plane); f2 = sk.OpenEdition(); sk.CenterLine = f2.CreateLine(0,0,0,100); ...; sk.CloseEdition(); shape_factory.AddNewShaft(sk)`
+- Circular Pattern: `shape_factory.AddNewCircPattern(pad, 6, 1, 60.0, 0.0, 1, 1, None, None, True, True, 0.0)`
+- ALWAYS call `part_com.Update()` at the end of the script."""
 
     ch = []
     for msg in st.session_state.get("messages", [])[:-1][-4:]:
         c = msg.get("content", "")[:500]
         if msg["role"] == "user": ch.append(HumanMessage(content=c))
         elif msg["role"] == "assistant": ch.append(AIMessage(content=c))
+
     if image_bytes:
         cb, cm = compress_image_for_llm(image_bytes)
         b64 = base64.b64encode(cb).decode()
-        inp = [{"type": "text", "text": user_input.strip() or "Build 3D CAD model from this drawing."},
-               {"type": "image_url", "image_url": {"url": f"data:{cm};base64,{b64}"}}]
+        inp_msg = HumanMessage(content=[
+            {"type": "text", "text": user_input.strip() or "Build 3D CAD model from this drawing."},
+            {"type": "image_url", "image_url": {"url": f"data:{cm};base64,{b64}"}}
+        ])
     else:
-        inp = user_input
+        inp_msg = HumanMessage(content=user_input)
+
+    messages = [SystemMessage(content=system_prompt)] + ch + [inp_msg]
 
     try:
-        agent = create_tool_calling_agent(llm, tools, prompt)
-        ae = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True, max_iterations=6)
-        res = ae.invoke({"input": inp, "chat_history": ch}, config={"callbacks": cbs})
-        out_text = res.get("output", "")
-        if "```python" in out_text or ("part_com" in out_text and "shape_factory" in out_text):
-            m = re.search(r'```(?:python)?\s*(.*?)\s*```', out_text, re.DOTALL)
-            code_cand = m.group(1) if m else out_text
-            if any(k in code_cand for k in ["AddNewPad", "AddNewShaft", "AddNewRemove", "part_com", "Sketches"]):
-                ok, exec_m = execute_python_catia_code(code_cand)
+        raw_res = llm.invoke(messages, config={"callbacks": cbs})
+        out_text = raw_res.content if hasattr(raw_res, "content") else str(raw_res)
+
+        # Extract and execute any Python CAD code directly in CATIA V5
+        m = re.search(r'```(?:python)?\s*(.*?)\s*```', out_text, re.DOTALL)
+        if m:
+            code_to_run = m.group(1).strip()
+            if any(k in code_to_run for k in ["AddNewPad", "AddNewShaft", "AddNewRemove", "part_com", "Sketches", "ShapeFactory", "sf.", "main_body"]):
+                if status_container:
+                    status_container.markdown("##### 📝 Live Python CAD Execution:")
+                    status_container.code(code_to_run, language="python")
+                ok, exec_m = execute_python_catia_code(code_to_run)
                 if ok:
                     out_text += f"\n\n✅ *Executed custom CAD script in CATIA V5.*"
                 else:
                     out_text += f"\n\n⚠️ *Execution notice:* {exec_m}"
         return out_text
     except Exception as e:
-        # Direct generation fallback for reasoning or non-tool-calling models
-        try:
-            if status_container:
-                status_container.markdown("⚡ **Direct CAD Script Synthesis Mode…**")
-            direct_prompt = [
-                SystemMessage(content=system_prompt + "\n\nCRITICAL: Always output your self-contained executable Python CAD script inside a ```python ... ``` block."),
-            ]
-            for m in ch: direct_prompt.append(m)
-            if isinstance(inp, list):
-                direct_prompt.append(HumanMessage(content=inp))
-            else:
-                direct_prompt.append(HumanMessage(content=str(inp)))
-            
-            raw_res = llm.invoke(direct_prompt, config={"callbacks": cbs})
-            out_text = raw_res.content if hasattr(raw_res, "content") else str(raw_res)
-            m = re.search(r'```(?:python)?\s*(.*?)\s*```', out_text, re.DOTALL)
-            if m:
-                code_to_run = m.group(1).strip()
-                if status_container:
-                    status_container.markdown("##### 📝 Executing Generated Python Script:")
-                    status_container.code(code_to_run, language="python")
-                ok, exec_m = execute_python_catia_code(code_to_run)
-                if ok:
-                    out_text += f"\n\n✅ *Executed custom CATIA script successfully.*"
-                else:
-                    out_text += f"\n\n⚠️ *Execution notice:* {exec_m}"
-            return out_text
-        except Exception as e2:
-            return f"⚠️ Agent error: `{e2}`"
+        return f"⚠️ Generation error: `{e}`"
 
 
 # ==============================================================================
