@@ -961,12 +961,40 @@ class CatiaShapeFactoryProxy:
         return _dummy_method
 
 
+class CatiaHybridShapeFactoryProxy:
+    def __init__(self, real_hsf, part_com):
+        self._hsf = real_hsf
+        self._pc = part_com
+
+    @property
+    def com_object(self):
+        return self._hsf
+
+    def AddNewPlaneOffset(self, plane, offset, orientation=False):
+        real_plane = plane._com if hasattr(plane, "_com") else plane
+        return self._hsf.AddNewPlaneOffset(real_plane, float(offset), bool(orientation))
+
+    def add_new_plane_offset(self, plane, offset, orientation=False):
+        return self.AddNewPlaneOffset(plane, offset, orientation)
+
+    def __getattr__(self, name):
+        if hasattr(self._hsf, name):
+            return getattr(self._hsf, name)
+        pascal_name = "".join(w.capitalize() for w in name.split("_"))
+        if hasattr(self._hsf, pascal_name):
+            return getattr(self._hsf, pascal_name)
+        def _dummy_method(*args, **kwargs):
+            return None
+        return _dummy_method
+
+
 class CatiaPartProxy:
     def __init__(self, real_part_com, real_part=None):
         self._com = real_part_com
         self._part = real_part
         self._sf_proxy = None
         self._bodies_proxy = None
+        self._hsf_proxy = None
 
     @property
     def com_object(self):
@@ -981,6 +1009,16 @@ class CatiaPartProxy:
     @property
     def shape_factory(self):
         return self.ShapeFactory
+
+    @property
+    def HybridShapeFactory(self):
+        if not self._hsf_proxy:
+            self._hsf_proxy = CatiaHybridShapeFactoryProxy(self._com.HybridShapeFactory, self._com)
+        return self._hsf_proxy
+
+    @property
+    def hybrid_shape_factory(self):
+        return self.HybridShapeFactory
 
     @property
     def Bodies(self):
@@ -1017,6 +1055,12 @@ class CatiaPartProxy:
 
     def get_shape_factory(self):
         return self.ShapeFactory
+
+    def GetHybridShapeFactory(self):
+        return self.HybridShapeFactory
+
+    def get_hybrid_shape_factory(self):
+        return self.HybridShapeFactory
 
     def GetBodies(self):
         return self.Bodies
@@ -1116,6 +1160,10 @@ class CatiaPartProxy:
             return getattr(self.ShapeFactory, name)
         if hasattr(self.ShapeFactory, pascal_name):
             return getattr(self.ShapeFactory, pascal_name)
+        if hasattr(self.HybridShapeFactory, name):
+            return getattr(self.HybridShapeFactory, name)
+        if hasattr(self.HybridShapeFactory, pascal_name):
+            return getattr(self.HybridShapeFactory, pascal_name)
         if hasattr(self._com, "OriginElements") and hasattr(self._com.OriginElements, name):
             return getattr(self._com.OriginElements, name)
         if hasattr(self._com, "OriginElements") and hasattr(self._com.OriginElements, pascal_name):
@@ -1218,6 +1266,7 @@ def execute_python_catia_code(code_snippet: str):
         "part": proxy_part, "part_com": proxy_part, "pc": proxy_part,
         "doc": proxy_app, "document": proxy_app,
         "shape_factory": proxy_part.ShapeFactory, "sf": proxy_part.ShapeFactory,
+        "hybrid_shape_factory": proxy_part.HybridShapeFactory, "hsf": proxy_part.HybridShapeFactory,
         "bodies": proxy_part.Bodies, "main_body": proxy_part.MainBody,
         "xy_plane": proxy_part.PlaneXY, "plane_xy": proxy_part.PlaneXY,
         "yz_plane": proxy_part.PlaneYZ, "plane_yz": proxy_part.PlaneYZ,
@@ -1228,10 +1277,6 @@ def execute_python_catia_code(code_snippet: str):
         "pythoncom": pythoncom, "win32com": win32com,
         "math": math, "time": time,
     }
-    try:
-        exec_scope["hybrid_shape_factory"] = pc.HybridShapeFactory
-        exec_scope["hsf"] = pc.HybridShapeFactory
-    except Exception: pass
     try:
         exec_scope["parameters"] = pc.Parameters
         exec_scope["relations"] = pc.Relations
@@ -1371,18 +1416,20 @@ def run_agent_with_live_status(llm, user_input, image_bytes=None, image_mime="im
 1. GREETINGS & QUESTIONS: If the user says hello, asks who you are, or asks a general question, reply warmly and concisely in 1-2 friendly sentences. NEVER generate python code or CAD commands for greetings.
 2. 3D CAD REQUESTS: ONLY when the user explicitly asks to build, create, or modify a 3D model (e.g. "build a coffee mug", "create a cylinder", "design a shaft"):
    - Briefly describe what you designed in 1-2 bullet points.
-   - For vessels (coffee mugs, cups, housings), always build the complete model in one shot:
-     1. Outer Solid: `pad = shape_factory.add_new_pad(sk_outer, 90.0)`
-     2. Inner Hollow: `pocket = shape_factory.add_new_pocket(sk_inner, 80.0)`
-     3. Handle: `pad_handle = shape_factory.add_new_pad(sk_handle, 15.0)` (on plane_zx)
-   - Put executable Python code inside a ```python ... ``` block at the end using pycatia objects:
-     `sk = main_body.sketches.add(plane_xy)` -> `f2 = sk.open_edition()` -> `f2.create_closed_circle(x, y, r)` / `f2.create_line(...)` -> `sk.close_edition()`
-     `pad = shape_factory.add_new_pad(sk, height)`
-     `pocket = shape_factory.add_new_pocket(sk_pocket, depth)`
-     `shaft = shape_factory.add_new_shaft(sk_shaft)`
-     Finish with `part.update()`.
+   - For Coffee Mugs, Cups, & Containers, use this exact 1-shot method:
+     1. Outer Body: `pad = shape_factory.add_new_pad(sk_outer, 90.0)` (Pad on plane_xy)
+     2. Top Plane & Pocket (Hollows from top downwards):
+        `top_plane = hybrid_shape_factory.add_new_plane_offset(plane_xy, 90.0, False)`
+        `part.update()`
+        `sk_inner = main_body.sketches.add(top_plane)`
+        `pocket = shape_factory.add_new_pocket(sk_inner, 80.0)` (Cuts 80mm downwards into the mug!)
+     3. Hollow Loop Handle (Concentric circles on plane_zx):
+        `sk_h = main_body.sketches.add(plane_zx)`
+        `f2 = sk_h.open_edition(); f2.create_closed_circle(45.0, 45.0, 20.0); f2.create_closed_circle(45.0, 45.0, 12.0); sk_h.close_edition()`
+        `pad_h = shape_factory.add_new_pad(sk_h, 15.0)`
+   - Put executable Python code inside a ```python ... ``` block at the end and conclude with `part.update()`.
 
-Pre-injected variables: `caa`, `part`, `part_com`, `main_body`, `shape_factory`, `plane_xy`, `plane_yz`, `plane_zx`.
+Pre-injected variables: `caa`, `part`, `part_com`, `main_body`, `shape_factory`, `hybrid_shape_factory`, `plane_xy`, `plane_yz`, `plane_zx`.
 """
 
     ch = []
