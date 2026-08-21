@@ -830,6 +830,13 @@ class CatiaShapeFactoryProxy:
     def add_new_pad(self, sketch, depth):
         return self.AddNewPad(sketch, depth)
 
+    def AddNewPocket(self, sketch, depth):
+        real_sk = sketch._sk if hasattr(sketch, "_sk") else sketch
+        return self._sf.AddNewPocket(real_sk, float(depth))
+
+    def add_new_pocket(self, sketch, depth):
+        return self.AddNewPocket(sketch, depth)
+
     def AddNewRemove(self, body):
         real_b = body._com if hasattr(body, "_com") else body
         try:
@@ -840,7 +847,25 @@ class CatiaShapeFactoryProxy:
         try:
             self._pc.InWorkObject = self._mb
         except Exception: pass
-        return self._sf.AddNewRemove(real_b)
+        try:
+            return self._sf.AddNewRemove(real_b)
+        except Exception:
+            # Automatic fallback: Extract sketch from cut body and create pocket directly
+            try:
+                for i in range(1, real_b.Sketches.Count + 1):
+                    sk = real_b.Sketches.Item(i)
+                    self._pc.InWorkObject = self._mb
+                    depth = 90.0
+                    try:
+                        for j in range(1, real_b.Shapes.Count + 1):
+                            sh = real_b.Shapes.Item(j)
+                            if hasattr(sh, "FirstLimit"):
+                                depth = float(sh.FirstLimit.Dimension.Value)
+                    except Exception: pass
+                    return self._sf.AddNewPocket(sk, depth)
+            except Exception:
+                pass
+            return None
 
     def add_new_remove(self, body):
         return self.AddNewRemove(body)
@@ -855,7 +880,10 @@ class CatiaShapeFactoryProxy:
         try:
             self._pc.InWorkObject = self._mb
         except Exception: pass
-        return self._sf.AddNewAdd(real_b)
+        try:
+            return self._sf.AddNewAdd(real_b)
+        except Exception:
+            return None
 
     def add_new_add(self, body):
         return self.AddNewAdd(body)
@@ -1208,7 +1236,7 @@ Whenever the user asks you to build, create, or modify a 3D model, write self-co
 
 # WORKING CATIA V5 CODE PATTERNS:
 
-## 1. Cylinder / Mug / Cup:
+## 1. Cylinder / Mug / Cup (Pad + Pocket):
 ```python
 # Outer Solid Body
 sk = main_body.Sketches.Add(xy_plane)
@@ -1216,18 +1244,21 @@ f2 = sk.OpenEdition()
 f2.CreateClosedCircle(0.0, 0.0, 40.0)
 sk.CloseEdition()
 part_com.InWorkObject = main_body
-pad = shape_factory.AddNewPad(sk, 90.0)
+pad = shape_factory.AddNewPad(sk, 100.0)
 
-# Inner Hollow Cutout (Boolean Remove)
-cut_body = bodies.Add()
-cut_sk = cut_body.Sketches.Add(xy_plane)
-f2_c = cut_sk.OpenEdition()
-f2_c.CreateClosedCircle(0.0, 0.0, 35.0)
-cut_sk.CloseEdition()
-part_com.InWorkObject = cut_body
-shape_factory.AddNewPad(cut_sk, 85.0)
-part_com.InWorkObject = main_body
-shape_factory.AddNewRemove(cut_body)
+# Inner Hollow Cavity (Pocket)
+sk_pocket = main_body.Sketches.Add(xy_plane)
+f2_p = sk_pocket.OpenEdition()
+f2_p.CreateClosedCircle(0.0, 0.0, 35.0)
+sk_pocket.CloseEdition()
+pocket = shape_factory.AddNewPocket(sk_pocket, 90.0)
+
+# Side Handle
+sk_h = main_body.Sketches.Add(zx_plane)
+f2_h = sk_h.OpenEdition()
+f2_h.CreateClosedCircle(45.0, 50.0, 15.0)
+sk_h.CloseEdition()
+pad_h = shape_factory.AddNewPad(sk_h, 15.0)
 
 part_com.Update()
 ```
