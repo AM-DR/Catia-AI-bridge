@@ -27,3 +27,7 @@ venv/
 
 # Documentation capture scratch files
 docs/images/*.tmp
+
+# Release archives
+*.zip
+*.tar.gz
