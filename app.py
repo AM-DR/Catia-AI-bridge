@@ -450,35 +450,38 @@ def split_part_in_catia(plane_name="PlaneXY", split_style="Planar", gap_mm=1.0, 
         half_gap = max(0.1, float(gap_mm) / 2.0)
 
         if "Puzzle" in split_style or "Jigsaw" in split_style:
-            # 1. Create Cutter Body with real interlocking puzzle / dovetail tabs
             cut_body = pc.Bodies.Add()
             cut_body.Name = "Split_Cutter_Puzzle"
             cut_sketch = cut_body.Sketches.Add(base_plane)
             f2 = cut_sketch.OpenEdition()
 
-            # Centerline path for puzzle joint
-            centerline = [(-span, 0.0), (-50.0, 0.0)]
             tc = max(1, min(10, int(tab_count)))
-            tw = max(8.0, float(tab_size))
-            th = max(8.0, float(tab_size) * 0.9)
-            active_span = 45.0
+            active_span = 80.0
             dx = (2.0 * active_span) / float(tc)
+            tw = min(dx * 0.45, max(4.0, float(tab_size)))
+            th = min(35.0, max(4.0, float(tab_size) * 0.8))
 
+            centerline = [(-span, 0.0), (-active_span, 0.0)]
             for t in range(tc):
                 cx = -active_span + (t + 0.5) * dx
                 sign = 1.0 if t % 2 == 0 else -1.0
                 h_val = sign * th
                 centerline.extend([
-                    (cx - tw * 0.5, 0.0),
-                    (cx - tw * 0.35, 0.0),
+                    (cx - tw * 0.6, 0.0),
+                    (cx - tw * 0.4, h_val * 0.2),
                     (cx - tw * 0.5, h_val),
                     (cx + tw * 0.5, h_val),
-                    (cx + tw * 0.35, 0.0),
-                    (cx + tw * 0.5, 0.0)
+                    (cx + tw * 0.4, h_val * 0.2),
+                    (cx + tw * 0.6, 0.0)
                 ])
-            centerline.extend([(50.0, 0.0), (span, 0.0)])
+            centerline.extend([(active_span, 0.0), (span, 0.0)])
 
-            # Normal offset to form closed polygon with thickness gap_mm
+            clean_cl = [centerline[0]]
+            for pt in centerline[1:]:
+                if math.hypot(pt[0] - clean_cl[-1][0], pt[1] - clean_cl[-1][1]) > 0.01:
+                    clean_cl.append(pt)
+            centerline = clean_cl
+
             pts_top = []
             pts_bot = []
             for i in range(len(centerline)):
@@ -497,32 +500,27 @@ def split_part_in_catia(plane_name="PlaneXY", split_style="Planar", gap_mm=1.0, 
                 pts_bot.append((centerline[i][0] - half_gap * nx, centerline[i][1] - half_gap * ny))
 
             poly = pts_top + list(reversed(pts_bot))
-            pts2d = [f2.CreatePoint(x, y) for x, y in poly]
             for i in range(len(poly)):
-                ln = f2.CreateLine(poly[i][0], poly[i][1], poly[(i+1)%len(poly)][0], poly[(i+1)%len(poly)][1])
-                ln.StartPoint = pts2d[i]
-                ln.EndPoint = pts2d[(i+1)%len(poly)]
+                p1 = poly[i]
+                p2 = poly[(i + 1) % len(poly)]
+                f2.CreateLine(p1[0], p1[1], p2[0], p2[1])
 
             cut_sketch.CloseEdition()
             pc.InWorkObject = cut_body
             pad = sf.AddNewPad(cut_sketch, 300.0)
             try:
-                pad.SecondLimit.Dimension.Value = 300.0
+                pad.IsSymmetric = True
             except Exception:
-                pass
+                try: pad.SecondLimit.Dimension.Value = 300.0
+                except Exception: pass
             try:
                 pc.Update()
             except Exception:
                 pass
             pc.InWorkObject = mb
             sf.AddNewRemove(cut_body)
-            try:
-                pc.Update()
-            except Exception:
-                pass
 
         elif "Pyramid" in split_style:
-            # 4-Sided Pyramid / Diagonal X-Split: Two 45-degree diagonal cuts
             cos45 = 0.70710678
             sin45 = 0.70710678
             nx, ny = -sin45 * half_gap, cos45 * half_gap
@@ -538,15 +536,18 @@ def split_part_in_catia(plane_name="PlaneXY", split_style="Planar", gap_mm=1.0, 
                 (span - nx, span - ny),
                 (-span - nx, -span - ny)
             ]
-            pts1 = [f2_1.CreatePoint(x, y) for x, y in poly1]
             for i in range(len(poly1)):
-                ln = f2_1.CreateLine(poly1[i][0], poly1[i][1], poly1[(i+1)%len(poly1)][0], poly1[(i+1)%len(poly1)][1])
-                ln.StartPoint = pts1[i]; ln.EndPoint = pts1[(i+1)%len(poly1)]
+                p1 = poly1[i]
+                p2 = poly1[(i + 1) % len(poly1)]
+                f2_1.CreateLine(p1[0], p1[1], p2[0], p2[1])
             sk1.CloseEdition()
             pc.InWorkObject = cut_body1
             pad1 = sf.AddNewPad(sk1, 300.0)
-            try: pad1.SecondLimit.Dimension.Value = 300.0
-            except Exception: pass
+            try:
+                pad1.IsSymmetric = True
+            except Exception:
+                try: pad1.SecondLimit.Dimension.Value = 300.0
+                except Exception: pass
             try: pc.Update()
             except Exception: pass
             pc.InWorkObject = mb
@@ -563,15 +564,18 @@ def split_part_in_catia(plane_name="PlaneXY", split_style="Planar", gap_mm=1.0, 
                 (span - nx, -span + ny),
                 (-span - nx, span + ny)
             ]
-            pts2 = [f2_2.CreatePoint(x, y) for x, y in poly2]
             for i in range(len(poly2)):
-                ln = f2_2.CreateLine(poly2[i][0], poly2[i][1], poly2[(i+1)%len(poly2)][0], poly2[(i+1)%len(poly2)][1])
-                ln.StartPoint = pts2[i]; ln.EndPoint = pts2[(i+1)%len(poly2)]
+                p1 = poly2[i]
+                p2 = poly2[(i + 1) % len(poly2)]
+                f2_2.CreateLine(p1[0], p1[1], p2[0], p2[1])
             sk2.CloseEdition()
             pc.InWorkObject = cut_body2
             pad2 = sf.AddNewPad(sk2, 300.0)
-            try: pad2.SecondLimit.Dimension.Value = 300.0
-            except Exception: pass
+            try:
+                pad2.IsSymmetric = True
+            except Exception:
+                try: pad2.SecondLimit.Dimension.Value = 300.0
+                except Exception: pass
             try: pc.Update()
             except Exception: pass
             pc.InWorkObject = mb
@@ -583,15 +587,18 @@ def split_part_in_catia(plane_name="PlaneXY", split_style="Planar", gap_mm=1.0, 
             cut_sketch = cut_body.Sketches.Add(base_plane)
             f2 = cut_sketch.OpenEdition()
             poly = [(-span, -half_gap), (span, -half_gap), (span, half_gap), (-span, half_gap)]
-            pts2d = [f2.CreatePoint(x, y) for x, y in poly]
             for i in range(len(poly)):
-                ln = f2.CreateLine(poly[i][0], poly[i][1], poly[(i+1)%len(poly)][0], poly[(i+1)%len(poly)][1])
-                ln.StartPoint = pts2d[i]; ln.EndPoint = pts2d[(i+1)%len(poly)]
+                p1 = poly[i]
+                p2 = poly[(i + 1) % len(poly)]
+                f2.CreateLine(p1[0], p1[1], p2[0], p2[1])
             cut_sketch.CloseEdition()
             pc.InWorkObject = cut_body
             pad = sf.AddNewPad(cut_sketch, 300.0)
-            try: pad.SecondLimit.Dimension.Value = 300.0
-            except Exception: pass
+            try:
+                pad.IsSymmetric = True
+            except Exception:
+                try: pad.SecondLimit.Dimension.Value = 300.0
+                except Exception: pass
             try: pc.Update()
             except Exception: pass
             pc.InWorkObject = mb
@@ -599,6 +606,14 @@ def split_part_in_catia(plane_name="PlaneXY", split_style="Planar", gap_mm=1.0, 
 
         try:
             pc.Update()
+        except Exception:
+            try: part.update()
+            except Exception: pass
+
+        try:
+            viewer = caa.active_window.active_viewer
+            viewer.reframe()
+            viewer.update()
         except Exception:
             pass
 
@@ -1741,6 +1756,11 @@ def run_custom_catia_python_script(code_snippet: str) -> str:
 
 def instantiate_llm(provider, model_name, api_key, custom_base_url=""):
     m = model_name.strip()
+    if provider == "Google Gemini":
+        if not api_key: return None
+        return ChatOpenAI(model=m or "gemini-2.0-flash", api_key=api_key,
+                          base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                          temperature=0.0, streaming=True)
     if provider == "Local (llama.cpp / Local Server)":
         bu = custom_base_url.strip() or "http://localhost:8080/v1"
         return ChatOpenAI(model=m or "local-model", base_url=bu,
@@ -1765,37 +1785,81 @@ def instantiate_llm(provider, model_name, api_key, custom_base_url=""):
 def run_agent_with_live_status(llm, user_input, image_bytes=None, image_mime="image/png", status_container=None):
     cbs = [StreamlitAgentProgressHandler(status_container)] if status_container else []
 
-    system_prompt = """You are CATIA V5 AI Studio, an intelligent CAD engineering assistant.
+    system_prompt = """You are CATIA V5 AI Studio, an expert CAD engineering assistant for Dassault Systèmes CATIA V5.
 
 # CONVERSATIONAL RULES:
-1. GREETINGS & QUESTIONS: If the user says hello, asks who you are, or asks a general question, reply warmly and concisely in 1-2 friendly sentences. NEVER generate python code or CAD commands for greetings.
-2. 3D CAD REQUESTS: ONLY when the user explicitly asks to build, create, or modify a 3D model (e.g. "build a coffee mug", "create a cylinder", "design a shaft"):
-   - Briefly describe what you designed in 1-2 bullet points.
-   - For Coffee Mugs, Cups, & Hollow Cylinders, use Revolve (Shaft) on plane_zx:
-     1. Hollow Body via Shaft:
-        sk = main_body.sketches.add(plane_zx)
-        f2 = sk.open_edition()
-        sk.center_line = f2.create_line(0.0, 0.0, 0.0, 100.0)
-        pts = [(0.0, 0.0), (40.0, 0.0), (40.0, 90.0), (35.0, 90.0), (35.0, 8.0), (0.0, 8.0)]
-        for i in range(len(pts)):
-            p1 = pts[i]
-            p2 = pts[(i + 1) % len(pts)]
-            f2.create_line(p1[0], p1[1], p2[0], p2[1])
-        sk.close_edition()
-        shaft = shape_factory.add_new_shaft(sk)
-     2. Hollow Loop Handle (Fused to body on plane_zx):
-        sk_h = main_body.sketches.add(plane_zx)
-        f2_h = sk_h.open_edition()
-        f2_h.create_closed_circle(50.0, 50.0, 20.0)
-        f2_h.create_closed_circle(50.0, 50.0, 12.0)
-        sk_h.close_edition()
-        pad_h = shape_factory.add_new_pad(sk_h, 7.5)
-        pad_h.is_symmetric = True
-   - For Feature Deletion / Modification (e.g. "remove the handle", "delete pocket"):
-     `part.shapes.remove(pad_h)` or `part.shapes.item(part.shapes.count).delete()` or `part.selection.delete()`
-   - Put executable Python code inside a ```python ... ``` block at the end and conclude with `part.update()`.
+1. GREETINGS & QUESTIONS: If the user greets you, asks who you are, or asks a general engineering question, reply warmly, professionally, and concisely in 1-2 sentences. NEVER generate python code or CAD blocks for greetings or general questions.
+2. 3D CAD REQUESTS: When the user asks to build, create, modify, split, or delete a 3D CAD model:
+   - Provide a concise 1-2 sentence engineering summary of what you are modeling.
+   - Output an executable Python code block inside ```python ... ``` at the very end.
+   - Conclude every script with `part.update()`.
 
-Pre-injected variables: `caa`, `part`, `part_com`, `main_body`, `shape_factory`, `plane_xy`, `plane_yz`, `plane_zx`.
+# CANONICAL CATIA V5 PYTHON RECIPES:
+Pre-injected variables: `caa`, `part`, `part_com`, `main_body`, `shape_factory` (or `sf`), `plane_xy`, `plane_yz`, `plane_zx`.
+
+1. EXTRUSION / PAD:
+   sk = main_body.sketches.add(plane_xy)
+   f2 = sk.open_edition()
+   # Draw closed profile using f2.create_line(x1, y1, x2, y2) or f2.create_closed_circle(cx, cy, r)
+   f2.create_closed_circle(0.0, 0.0, 30.0)
+   sk.close_edition()
+   pad = shape_factory.add_new_pad(sk, 50.0)
+
+2. REVOLVE / SHAFT (Cylinders, Bushings, Mugs, Cups):
+   sk = main_body.sketches.add(plane_zx)
+   f2 = sk.open_edition()
+   sk.center_line = f2.create_line(0.0, 0.0, 0.0, 100.0)
+   pts = [(0.0, 0.0), (40.0, 0.0), (40.0, 90.0), (35.0, 90.0), (35.0, 8.0), (0.0, 8.0)]
+   for i in range(len(pts)):
+       p1, p2 = pts[i], pts[(i + 1) % len(pts)]
+       f2.create_line(p1[0], p1[1], p2[0], p2[1])
+   sk.close_edition()
+   shaft = shape_factory.add_new_shaft(sk)
+
+3. MUG LOOP HANDLE (Fused to body on plane_zx):
+   sk_h = main_body.sketches.add(plane_zx)
+   f2_h = sk_h.open_edition()
+   f2_h.create_closed_circle(50.0, 50.0, 20.0)
+   f2_h.create_closed_circle(50.0, 50.0, 12.0)
+   sk_h.close_edition()
+   pad_h = shape_factory.add_new_pad(sk_h, 7.5)
+   pad_h.is_symmetric = True
+
+4. POCKET / CUTOUT:
+   sk_c = main_body.sketches.add(plane_xy)
+   f2_c = sk_c.open_edition()
+   f2_c.create_closed_circle(0.0, 0.0, 15.0)
+   sk_c.close_edition()
+   pocket = shape_factory.add_new_pocket(sk_c, 25.0)
+
+5. PART SPLIT / CUTTER:
+   # Planar split with clearance gap
+   cut_body = part.bodies.add()
+   cut_sk = cut_body.sketches.add(plane_xy)
+   f2_cut = cut_sk.open_edition()
+   poly = [(-200.0, -0.5), (200.0, -0.5), (200.0, 0.5), (-200.0, 0.5)]
+   for i in range(len(poly)):
+       f2_cut.create_line(poly[i][0], poly[i][1], poly[(i+1)%len(poly)][0], poly[(i+1)%len(poly)][1])
+   cut_sk.close_edition()
+   pad_cut = shape_factory.add_new_pad(cut_sk, 300.0)
+   pad_cut.is_symmetric = True
+   shape_factory.add_new_remove(cut_body)
+
+6. FEATURE DELETION / REMOVAL:
+   # To remove or delete features:
+   part.shapes.item(part.shapes.count).delete()
+
+7. PARAMETER ADJUSTMENT:
+   try:
+       part.parameters.item("Length").value = 120.0
+   except Exception:
+       pass
+
+# STRICT CODING RULES:
+- NEVER attempt to assign `ln.start_point` or `ln.end_point` (they are read-only properties in COM).
+- ALWAYS call `sk.close_edition()` immediately after finishing sketch 2D curves.
+- Keep profiles closed and non-self-intersecting.
+- Always conclude with `part.update()`.
 """
 
     ch = []
@@ -2773,10 +2837,16 @@ def main():
     inject_css(theme)
     st.sidebar.markdown("---")
     provider = st.sidebar.selectbox("🤖 LLM Engine",
-        ["OpenRouter", "OpenAI", "Anthropic", "Local (llama.cpp / Local Server)", "Local (Ollama)"])
-    dm = {"Local (llama.cpp / Local Server)": "local-model", "Local (Ollama)": "llama3.2-vision",
-          "OpenAI": "gpt-4o", "Anthropic": "claude-3-5-sonnet-20240620", "OpenRouter": "nvidia/nemotron-3.5-lightning:free"}
-    model_name = st.sidebar.text_input("🧠 Model", value=dm.get(provider, "nvidia/nemotron-3.5-lightning:free"))
+        ["Google Gemini", "OpenRouter", "OpenAI", "Anthropic", "Local (llama.cpp / Local Server)", "Local (Ollama)"])
+    dm = {
+        "Google Gemini": "gemini-2.0-flash",
+        "OpenRouter": "nvidia/nemotron-3.5-lightning:free",
+        "OpenAI": "gpt-4o",
+        "Anthropic": "claude-3-5-sonnet-20240620",
+        "Local (llama.cpp / Local Server)": "local-model",
+        "Local (Ollama)": "llama3.2-vision"
+    }
+    model_name = st.sidebar.text_input("🧠 Model", value=dm.get(provider, "gemini-2.0-flash"))
 
     custom_base_url = ""
     if provider == "Local (llama.cpp / Local Server)":

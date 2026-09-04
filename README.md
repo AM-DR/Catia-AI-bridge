@@ -52,7 +52,7 @@
 - **Complex Generators**: Parametric 3D Iron Man Helmet Faceplate Mask, 5-Spoke Automotive Wheel Rim, Pad blocks, and Cylinders.
 
 ### 4. 🤖 Multi-LLM AI Coding Agent & Live Diagnostics
-- Supports **Local Offline Models** (`llama.cpp`, `Ollama`, LM Studio) and **Cloud Providers** (`OpenAI`, `Anthropic Claude`, `OpenRouter`, `DeepSeek`).
+- Supports **Local Offline Models** (`llama.cpp`, `Ollama`, LM Studio) and **Cloud Providers** (**Google Gemini**, `OpenAI`, `Anthropic Claude`, `OpenRouter`, `DeepSeek`).
 - **Live Code Inspector**: View generated Python scripts, syntax validation, and real-time CATIA COM execution logs.
 - Multimodal technical drawing vision support (upload blueprints, sketches, or 2D diagrams to convert into 3D CAD).
 
@@ -70,7 +70,7 @@
 3. **Python Runtime** (for development / rebuilding): Python 3.10 or 3.11 (64-bit) with `pip`.
 4. **LLM Endpoint**:
    - *Local*: `llama.cpp`, `Ollama` (`http://localhost:11434/v1`), or LM Studio (`http://localhost:1234/v1`).
-   - *Cloud*: OpenAI API Key, Anthropic API Key, or OpenRouter API Key.
+   - *Cloud*: Google Gemini API Key, OpenAI API Key, Anthropic API Key, or OpenRouter API Key.
 
 ---
 
