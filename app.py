@@ -1756,28 +1756,30 @@ def run_custom_catia_python_script(code_snippet: str) -> str:
 
 def instantiate_llm(provider, model_name, api_key, custom_base_url=""):
     m = model_name.strip()
+    if not m:
+        return None
     if provider == "Google Gemini":
         if not api_key: return None
-        return ChatOpenAI(model=m or "gemini-2.0-flash", api_key=api_key,
+        return ChatOpenAI(model=m, api_key=api_key,
                           base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
                           temperature=0.0, streaming=True)
     if provider == "Local (llama.cpp / Local Server)":
         bu = custom_base_url.strip() or "http://localhost:8080/v1"
-        return ChatOpenAI(model=m or "local-model", base_url=bu,
+        return ChatOpenAI(model=m, base_url=bu,
                           api_key=api_key.strip() or "not-needed", temperature=0.0, streaming=True)
     if provider == "Local (Ollama)":
         if not ChatOllama:
             return None
-        return ChatOllama(model=m or "llama3.2-vision", temperature=0.0)
+        return ChatOllama(model=m, temperature=0.0)
     if provider == "OpenAI":
         if not api_key: return None
-        return ChatOpenAI(model=m or "gpt-4o", api_key=api_key, temperature=0.0, streaming=True)
+        return ChatOpenAI(model=m, api_key=api_key, temperature=0.0, streaming=True)
     if provider == "Anthropic":
         if not api_key: return None
-        return ChatAnthropic(model=m or "claude-3-5-sonnet-20240620", api_key=api_key, temperature=0.0, streaming=True)
+        return ChatAnthropic(model=m, api_key=api_key, temperature=0.0, streaming=True)
     if provider == "OpenRouter":
         if not api_key: return None
-        return ChatOpenAI(model=m or "nvidia/nemotron-3.5-lightning:free", api_key=api_key,
+        return ChatOpenAI(model=m, api_key=api_key,
                           base_url="https://openrouter.ai/api/v1", temperature=0.0, streaming=True)
     return None
 
@@ -2838,15 +2840,12 @@ def main():
     st.sidebar.markdown("---")
     provider = st.sidebar.selectbox("🤖 LLM Engine",
         ["Google Gemini", "OpenRouter", "OpenAI", "Anthropic", "Local (llama.cpp / Local Server)", "Local (Ollama)"])
-    dm = {
-        "Google Gemini": "gemini-2.0-flash",
-        "OpenRouter": "nvidia/nemotron-3.5-lightning:free",
-        "OpenAI": "gpt-4o",
-        "Anthropic": "claude-3-5-sonnet-20240620",
-        "Local (llama.cpp / Local Server)": "local-model",
-        "Local (Ollama)": "llama3.2-vision"
-    }
-    model_name = st.sidebar.text_input("🧠 Model", value=dm.get(provider, "gemini-2.0-flash"))
+    model_name = st.sidebar.text_input(
+        "🧠 Model Name",
+        value=st.session_state.get("custom_model_name", ""),
+        placeholder="Enter model identifier (e.g. gpt-4o, gemini-2.0-flash, claude-3-7-sonnet...)",
+        key="custom_model_name"
+    ).strip()
 
     custom_base_url = ""
     if provider == "Local (llama.cpp / Local Server)":
@@ -2866,9 +2865,10 @@ def main():
         st.rerun()
 
     # Header
+    chip_text = model_name if model_name else provider
     st.markdown(f"<div class='hdr'><span style='font-size:2.2rem'>📐</span>"
                 f"<span class='hdr-t'>CATIA V5 AI Studio</span>"
-                f"<span class='chip'>{model_name}</span></div>", unsafe_allow_html=True)
+                f"<span class='chip'>{chip_text}</span></div>", unsafe_allow_html=True)
 
     tab_ai, tab_studio, tab_params = st.tabs(["💬 AI Assistant", "🧱 3D Studio", "🎛️ Parameters"])
 
@@ -2912,19 +2912,24 @@ def main():
             st.session_state.messages.append(mp)
             with st.chat_message("user"):
                 st.write(dt)
-            llm = instantiate_llm(provider, model_name, api_key, custom_base_url)
-            if not llm:
-                r = "⚠️ LLM not configured."
+            if not model_name:
+                r = "⚠️ Please specify a **Model Name** in the sidebar."
                 with st.chat_message("assistant"): st.write(r)
                 st.session_state.messages.append({"role": "assistant", "content": r})
             else:
-                with st.chat_message("assistant"):
-                    with st.status("🤖 Building…", expanded=True) as sb:
-                        r = run_agent_with_live_status(llm, prompt, ib, status_container=sb)
-                        sb.update(label="✅ Done", state="complete", expanded=False)
-                    st.write(r)
-                st.session_state.messages.append({"role": "assistant", "content": r})
-                st.rerun()
+                llm = instantiate_llm(provider, model_name, api_key, custom_base_url)
+                if not llm:
+                    r = f"⚠️ Could not configure LLM. Please check your **API Key** for {provider}."
+                    with st.chat_message("assistant"): st.write(r)
+                    st.session_state.messages.append({"role": "assistant", "content": r})
+                else:
+                    with st.chat_message("assistant"):
+                        with st.status("🤖 Building…", expanded=True) as sb:
+                            r = run_agent_with_live_status(llm, prompt, ib, status_container=sb)
+                            sb.update(label="✅ Done", state="complete", expanded=False)
+                        st.write(r)
+                    st.session_state.messages.append({"role": "assistant", "content": r})
+                    st.rerun()
 
     # --- TAB 2: 3D Studio ---
     with tab_studio:
