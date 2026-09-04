@@ -152,3 +152,10 @@ Catia-AI-bridge/
 
 Developed and maintained by **AM-DR**.  
 Contributions, feedback, and feature requests are welcome via [GitHub Issues](https://github.com/AM-DR/Catia-AI-bridge/issues).
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
