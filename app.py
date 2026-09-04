@@ -442,12 +442,27 @@ def split_part_in_catia(plane_name="PlaneXY", split_style="Planar", gap_mm=1.0, 
         sf = pc.ShapeFactory
         oe = pc.OriginElements
 
-        # Select target plane
-        plane_map = {"PlaneXY": oe.PlaneXY, "PlaneYZ": oe.PlaneYZ, "PlaneZX": oe.PlaneZX}
-        base_plane = plane_map.get(plane_name, oe.PlaneXY)
+        # Empty body guard
+        try:
+            if mb.Shapes.Count == 0:
+                return False, "MainBody contains no 3D solids to split. Please build or open a solid part first."
+        except Exception:
+            pass
+
+        # Select target plane flexibly
+        s_pl = str(plane_name).lower()
+        if "yz" in s_pl:
+            base_plane = oe.PlaneYZ
+            plane_display = "PlaneYZ"
+        elif "zx" in s_pl or "xz" in s_pl:
+            base_plane = oe.PlaneZX
+            plane_display = "PlaneZX"
+        else:
+            base_plane = oe.PlaneXY
+            plane_display = "PlaneXY"
 
         span = 250.0  # cutter bounding extent
-        half_gap = max(0.1, float(gap_mm) / 2.0)
+        half_gap = max(0.05, float(gap_mm) / 2.0)
 
         if "Puzzle" in split_style or "Jigsaw" in split_style:
             cut_body = pc.Bodies.Add()
@@ -458,7 +473,7 @@ def split_part_in_catia(plane_name="PlaneXY", split_style="Planar", gap_mm=1.0, 
             tc = max(1, min(10, int(tab_count)))
             active_span = 80.0
             dx = (2.0 * active_span) / float(tc)
-            tw = min(dx * 0.45, max(4.0, float(tab_size)))
+            tw = min(dx * 0.7, max(4.0, float(tab_size)))
             th = min(35.0, max(4.0, float(tab_size) * 0.8))
 
             centerline = [(-span, 0.0), (-active_span, 0.0)]
@@ -467,39 +482,18 @@ def split_part_in_catia(plane_name="PlaneXY", split_style="Planar", gap_mm=1.0, 
                 sign = 1.0 if t % 2 == 0 else -1.0
                 h_val = sign * th
                 centerline.extend([
-                    (cx - tw * 0.6, 0.0),
-                    (cx - tw * 0.4, h_val * 0.2),
-                    (cx - tw * 0.5, h_val),
-                    (cx + tw * 0.5, h_val),
-                    (cx + tw * 0.4, h_val * 0.2),
-                    (cx + tw * 0.6, 0.0)
+                    (cx - tw * 0.5, 0.0),
+                    (cx - tw * 0.25, h_val),
+                    (cx + tw * 0.25, h_val),
+                    (cx + tw * 0.5, 0.0)
                 ])
             centerline.extend([(active_span, 0.0), (span, 0.0)])
 
-            clean_cl = [centerline[0]]
-            for pt in centerline[1:]:
-                if math.hypot(pt[0] - clean_cl[-1][0], pt[1] - clean_cl[-1][1]) > 0.01:
-                    clean_cl.append(pt)
-            centerline = clean_cl
-
-            pts_top = []
-            pts_bot = []
-            for i in range(len(centerline)):
-                if i == 0:
-                    dx_v = centerline[1][0] - centerline[0][0]
-                    dy_v = centerline[1][1] - centerline[0][1]
-                elif i == len(centerline) - 1:
-                    dx_v = centerline[i][0] - centerline[i-1][0]
-                    dy_v = centerline[i][1] - centerline[i-1][1]
-                else:
-                    dx_v = centerline[i+1][0] - centerline[i-1][0]
-                    dy_v = centerline[i+1][1] - centerline[i-1][1]
-                L = math.hypot(dx_v, dy_v)
-                nx, ny = (-dy_v / L, dx_v / L) if L > 1e-6 else (0.0, 1.0)
-                pts_top.append((centerline[i][0] + half_gap * nx, centerline[i][1] + half_gap * ny))
-                pts_bot.append((centerline[i][0] - half_gap * nx, centerline[i][1] - half_gap * ny))
-
+            # Offset vertically to guarantee zero self-intersections for any gap size
+            pts_top = [(x, y + half_gap) for x, y in centerline]
+            pts_bot = [(x, y - half_gap) for x, y in centerline]
             poly = pts_top + list(reversed(pts_bot))
+
             for i in range(len(poly)):
                 p1 = poly[i]
                 p2 = poly[(i + 1) % len(poly)]
@@ -617,7 +611,7 @@ def split_part_in_catia(plane_name="PlaneXY", split_style="Planar", gap_mm=1.0, 
         except Exception:
             pass
 
-        return True, f"Successfully executed {split_style} split on {plane_name} with {gap_mm}mm gap clearance!"
+        return True, f"Successfully executed {split_style} split on {plane_display} with {gap_mm}mm gap clearance!"
     except Exception as e:
         return False, f"Part Split failed: {e}"
 
